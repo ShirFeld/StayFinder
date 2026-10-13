@@ -89,5 +89,4 @@ Local training application: no real payments, email, public registration, passwo
 ## Verification
 
 `npm test` exercises a real listening Express server: seed counts, filtering, sort, pagination, authentication/logout/HttpOnly cookie, role boundaries, invalid dates and guests, competing requests, adjacent bookings, price snapshots, cancellation ownership/idempotency/cutoff, property CRUD/deactivation, unique emails, self-lockout, disabled sessions, provider success/error/timeout, OpenAPI and SQL overlap triggers. `npm run build` verifies production bundling. UI checks and their results are documented in docs/verification.md.
-#   S t a y F i n d e r  
- 
+#
