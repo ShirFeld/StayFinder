@@ -1,0 +1,24 @@
+{
+  "name": "@stayfinder/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:migrate": "node src/database.js migrate",
+    "db:seed": "node src/database.js seed",
+    "db:reset": "node src/database.js reset",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "better-sqlite3": "^11.8.1",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.7",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.5.0",
+    "swagger-ui-express": "^5.0.1"
+  }
+}
