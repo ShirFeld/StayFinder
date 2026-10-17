@@ -1,0 +1,21 @@
+{
+  "name": "@stayfinder/automation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --project=chromium --project=mobile-chromium",
+    "test:sanity": "playwright test --grep @sanity",
+    "test:payments": "playwright test --grep @payments",
+    "test:db": "playwright test --grep @db",
+    "test:headed": "playwright test --project=chromium --headed",
+    "test:debug": "playwright test --project=chromium --debug",
+    "report": "playwright show-report reports/html",
+    "browsers:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

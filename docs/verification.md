@@ -45,3 +45,19 @@ Limits: this remains a targeted desktop/mobile and keyboard pass, not exhaustive
 ## Repository cleanup - October 17, 2026
 
 Removed ignored one-off development scripts, historical Stripe logs, temporary browser verification scripts, screenshots and browser profiles, and the empty automation placeholder. Historical verification entries above describe checks performed at the time; their temporary artifacts are no longer present. Maintained server tests remain in server/test. Database files and private Stripe setup were preserved. The 29 server tests and frontend production build passed after cleanup; browser flows were not repeated because application code did not change.
+
+
+## Maintained Playwright automation - October 17, 2026
+
+The maintained JavaScript automation workspace supersedes earlier notes about postponing Playwright. The final complete local run passed 57/57 cases with two workers and no local retries: 41 API/SQL cases and 8 UI scenarios on each of desktop Chromium and Pixel 7 Chromium emulation (16 UI executions). The actual observed-operation report recorded all 26/26 documented API operations. This is endpoint exercise coverage, not code coverage or exhaustive schema/scenario coverage.
+
+The frontend production build and all 29 existing Node server tests also passed. Earlier setup runs exposed incorrect test assumptions about the capacity error code and accessible cancellation/admin labels; those expectations were corrected, and the final full run had no failed, skipped or flaky tests. One initial Windows transform-cache file-open error did not recur in subsequent full runs.
+
+Fixtures use private per-worker SQLite files in unique OS temporary directories, reseeded for every test, with separate request/browser sessions and loopback ports selected by the OS. Stripe and weather networks are controlled; actual Stripe SDK webhook signature verification is retained. UI journeys cover quote/hosted redirect/verification/booking/refund, pending checkout reload/cancellation, login/logout, filters, responsive layout, errors, permissions, admin sections and keyboard navigation. Direct SQL probes verify foreign keys, unique emails, money checks and overlap protection, always rolling back the probe.
+
+The normal and manual-QA databases and private configuration were not targets of the suite. HTML, JSON, JUnit, endpoint reports and failure artifacts are ignored by Git. A GitHub Actions workflow was added but has not been executed remotely. Full setup, interview walkthrough and limitations are in automation/README.md and automation/test-strategy.md. No real card transaction or real Stripe hosted-form test was performed by this automated run.
+
+
+## Fixture-injected POM refactor - October 17, 2026
+
+All UI journeys now obtain test-scoped Page Objects from automation/fixtures/ui.fixture.js. Page Objects own locators and browser actions; tests retain scenario order and assertions. Shared shell/dialog components and the on-demand hosted-provider stub are separated. All 16 desktop/mobile UI executions passed after the refactor; the frontend build and git diff whitespace check passed. API/DB suites and infrastructure fixtures were not changed, so those suites were not repeated. The latest generated report is a filtered UI run (19/26 operations observed); the previous full 57-test run above exercised 26/26.

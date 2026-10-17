@@ -14,7 +14,7 @@ Use `4242 4242 4242 4242`, a future expiry date, and any three-digit CVC for a s
 
 The current flow includes cancellation confirmation, retained search filters/page, checkout recovery after refresh/browser close/session expiry, and separate pending/failed/completed refund messages. See [the behavior contract](docs/stabilization.md).
 
-For isolated local practice, run `npm run qa:db:reset` explicitly, then `npm run qa:dev`. QA uses UI port 5174, API port 3002, a separate database and cookie, and no inherited payment credentials. `npm run qa:status` shows its configuration and data counts. Controlled payment tests remain available through `npm test`; no full Playwright framework has been added. Read [the QA setup guide](docs/qa-environment.md) before automating.
+For isolated local practice, run `npm run qa:db:reset` explicitly, then `npm run qa:dev`. QA uses UI port 5174, API port 3002, a separate database and cookie, and no inherited payment credentials. `npm run qa:status` shows its configuration and data counts. The Playwright workspace in [automation](automation/README.md) starts its own disposable test environment. Read [the QA setup guide](docs/qa-environment.md) for manual practice.
 
 ## Requirements and Windows setup
 
@@ -101,7 +101,7 @@ UI form → same-origin /api fetch (Vite proxy in development) → Express sessi
 
 ## Scope and limitations
 
-Local training application: no live payments, email, public registration, password reset, file uploads, reviews, or full Playwright automation project. Admin users can create accounts and change roles/status; profile editing and password rotation are not implemented. Core sample photos are bundled locally (see docs/image-credits.md); admin-added photos and fonts use external services with local image/system font fallbacks. Stock photos may differ from the fictional destination. Weather has no cache and no service guarantee. Admin tables are unpaginated, suitable for this small demo. Sessions expire after one day; expired records are ignored, but background database cleanup is not implemented. Production deployment, monitoring and an advanced CSRF token flow are outside this local demo; same-site cookies and mutation Origin checks are present.
+Local training application: no live payments, email, public registration, password reset, file uploads, reviews. Admin users can create accounts and change roles/status; profile editing and password rotation are not implemented. Core sample photos are bundled locally (see docs/image-credits.md); admin-added photos and fonts use external services with local image/system font fallbacks. Stock photos may differ from the fictional destination. Weather has no cache and no service guarantee. Admin tables are unpaginated, suitable for this small demo. Sessions expire after one day; expired records are ignored, but background database cleanup is not implemented. Production deployment, monitoring and an advanced CSRF token flow are outside this local demo; same-site cookies and mutation Origin checks are present.
 
 ## Verification
 
@@ -110,3 +110,7 @@ Local training application: no live payments, email, public registration, passwo
 ## Documentation
 
 See the [documentation guide](docs/README.md) for architecture, requirements, QA setup, payments and verification.
+
+## Automated testing
+
+The [automation workspace](automation/README.md) contains JavaScript Playwright API, SQL and desktop/mobile UI suites, isolated data, payment failure scenarios, HTML/JUnit reports and a CI workflow. Run `npm run test:sanity` for critical flows, `npm run test:automation` for all scenarios and `npm run test:report` to inspect results. No running application or Stripe credentials are needed. External Stripe/weather behavior is controlled; this does not replace a real sandbox integration smoke check.

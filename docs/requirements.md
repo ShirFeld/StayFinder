@@ -28,7 +28,7 @@ Weather is independent from booking availability. Upstream success is normalized
 
 ## UI states and accessibility
 
-English responsive layout; semantic navigation, headings, forms, labels, table headers and buttons. Focus indicators are visible. Async pages show loading, actionable errors/retry or empty guidance. Submission buttons disable while pending. Booking confirmation shows its ID and authoritative price. My Bookings displays confirmed/cancelled status and original pricing. Photo errors show a local SVG. Stock images and fictional data are documented; no fabricated customer reviews. Use semantic Playwright locators when the future automation project is added.
+English responsive layout; semantic navigation, headings, forms, labels, table headers and buttons. Focus indicators are visible. Async pages show loading, actionable errors/retry or empty guidance. Submission buttons disable while pending. Booking confirmation shows its ID and authoritative price. My Bookings displays confirmed/cancelled status and original pricing. Photo errors show a local SVG. Stock images and fictional data are documented; no fabricated customer reviews. Use semantic Playwright locators in the automation workspace.
 
 ## Payment checkout update
 
@@ -36,4 +36,4 @@ New bookings require hosted Stripe sandbox payment. An availability quote does n
 
 ## Stabilization contract
 
-See [stabilization.md](stabilization.md) for current acceptance behavior: confirmation before the first cancellation, preserved catalog search/page, refresh and browser-close checkout recovery, expired-session sign-in return, server-based hold countdown, uncertain payment verification, failed refund recovery, keyboard focus and feedback. Use [qa-environment.md](qa-environment.md) for isolated data and deterministic provider checks before introducing Playwright.
+See [stabilization.md](stabilization.md) for current acceptance behavior: confirmation before the first cancellation, preserved catalog search/page, refresh and browser-close checkout recovery, expired-session sign-in return, server-based hold countdown, uncertain payment verification, failed refund recovery, keyboard focus and feedback. Use [qa-environment.md](qa-environment.md) for isolated data and deterministic provider checks for manual practice; see [the automation guide](../automation/README.md) for disposable automated test runs.

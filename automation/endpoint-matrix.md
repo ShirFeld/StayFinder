@@ -1,0 +1,32 @@
+# API endpoint test matrix
+
+All documented business operations have explicit scenarios. Swagger UI and OpenAPI JSON are also exercised in SAN-01; CON-01 guards mapping drift. This matrix does not imply exhaustive combinations for each endpoint.
+
+| Operation                               | Cases                          |
+| --------------------------------------- | ------------------------------ |
+| `GET /api/health`                       | SAN-01                         |
+| `GET /api/auth/me`                      | SAN-02                         |
+| `POST /api/auth/login`                  | SAN-02, AUTH-01                |
+| `POST /api/auth/logout`                 | SAN-02, AUTH-01                |
+| `GET /api/destinations`                 | SAN-01                         |
+| `GET /api/properties`                   | CAT-01                         |
+| `GET /api/properties/{id}`              | SAN-01, CAT-04                 |
+| `GET /api/properties/{id}/availability` | CAT-02, CAT-03, PAY-01         |
+| `GET /api/bookings`                     | PAY-01, PAY-02, PAY-05         |
+| `POST /api/bookings`                    | PAY-11                         |
+| `POST /api/bookings/{id}/cancel`        | PAY-05, PAY-06, PAY-07, PAY-10 |
+| `GET /api/checkouts`                    | PAY-01, PAY-05                 |
+| `POST /api/checkouts`                   | PAY-01 through PAY-11          |
+| `GET /api/checkouts/{id}`               | PAY-01, PAY-05                 |
+| `POST /api/checkouts/{id}/sync`         | PAY-02, PAY-05, PAY-08         |
+| `POST /api/checkouts/{id}/cancel`       | PAY-01, PAY-05                 |
+| `POST /api/checkouts/{id}/refund`       | PAY-05, PAY-07                 |
+| `POST /api/payments/webhook`            | HOOK-01, HOOK-02               |
+| `GET /api/admin/properties`             | ADM-01, AUTH-02                |
+| `POST /api/admin/properties`            | ADM-01, ADM-03                 |
+| `PUT /api/admin/properties/{id}`        | ADM-01, ADM-03, PAY-02         |
+| `GET /api/admin/users`                  | ADM-02, AUTH-02                |
+| `POST /api/admin/users`                 | ADM-02, ADM-03                 |
+| `PATCH /api/admin/users/{id}`           | ADM-02, ADM-03                 |
+| `GET /api/admin/bookings`               | ADM-01, PAY-02, AUTH-02        |
+| `GET /api/weather`                      | WEA-01, WEA-02                 |

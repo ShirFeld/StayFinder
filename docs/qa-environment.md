@@ -62,7 +62,7 @@ npm test
 
 These Node integration tests use in-memory SQLite, actual listening HTTP servers, and an injected provider double in `server/test/stripe-double.js`. It controls payment success, unpaid sessions, expiry, network errors, refunds, and idempotency. Real Stripe signature validation is used in webhook tests. Weather success/error/timeout cases use a local HTTP stub. These checks do not require Stripe availability or alter the normal or QA file databases.
 
-The provider double is test-only; the application has no environment setting that marks an arbitrary checkout as paid. Future browser automation can intercept the provider boundary or use a dedicated test harness. A small separate set of real-sandbox checks can then verify the actual Stripe integration.
+The provider double is test-only; the application has no environment setting that marks an arbitrary checkout as paid. The Playwright harness in `automation/` intercepts the external hosted browser page and injects the provider double at the existing app factory boundary. A small separate set of real-sandbox checks can then verify the actual Stripe integration.
 
 ## Suggested Automation Layers
 
@@ -72,3 +72,7 @@ The provider double is test-only; the application has no environment setting tha
 4. External integration smoke checks: a limited set against Stripe sandbox and Open-Meteo, kept separate from deterministic checks.
 
 This is preparation and a behavior contract, not a full Playwright infrastructure. See [the stabilization contract](stabilization.md) before writing scenarios.
+
+## Automated versus manual QA
+
+The maintained Playwright project is now in `automation/`. It does not target or reset this manual QA environment. Each worker owns a disposable SQLite database in an OS temporary directory and each test starts a real API on an automatically assigned loopback port. Payment and weather providers are controlled without inheriting secrets. See [the automation guide](../automation/README.md).
