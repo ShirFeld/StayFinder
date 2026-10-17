@@ -1,3 +1,11 @@
+# POM and fixture update
+
+UI journeys now import fixtures/ui.fixture.js. All page interactions/locators live in injected Page Objects (login, catalog, stay, checkout, bookings, admin) and reusable app-shell/cancellation-dialog components. API/DB tests retain fixtures/test.js and the HTTP client. The browser provider substitute is separately managed by an on-demand fixture. See automation/README.md for the example and responsibilities.
+
+# Current checkpoint: maintained automation workspace
+
+October 17, 2026: The user requested and authorized an automation project. The new `automation/` npm workspace contains JavaScript Playwright API/DB suites, desktop/mobile Chromium UI journeys, isolated per-worker temporary SQLite files, clean per-test seed data, controlled Stripe/weather providers, Page Objects, observed endpoint reporting and a GitHub Actions workflow. See automation/README.md and automation/test-strategy.md for current setup and limits. Normal and manual-QA databases/credentials are preserved. Historical statements below about postponing Playwright are superseded. The workflow has not been executed on GitHub. No real Stripe network is used in the default automation run. Final local verification: 57/57 Playwright executions passed (41 API/DB plus 16 desktop/mobile UI), all 26 documented API operations exercised, all 29 Node server tests and frontend build passed.
+
 ﻿# StayFinder — Conversation checkpoint
 
 ## Latest status — Stabilization completed on October 17, 2026

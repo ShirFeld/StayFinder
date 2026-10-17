@@ -73,6 +73,8 @@ stayfinder/
 |       |-- payments.test.js       Payment lifecycle and recovery tests
 |       |-- qa-config.test.js      QA environment isolation checks
 |       |-- stripe-double.js       Controlled Stripe substitute for server tests
+|-- automation/                    Playwright API, DB and desktop/mobile UI suites
+|-- .github/workflows/             CI verification workflow
 |-- docs/
 |   |-- README.md                  Documentation index
 |-- package.json                   Shared project commands and workspaces
@@ -82,7 +84,7 @@ stayfinder/
 
 JSX is syntax for describing an HTML-like interface inside JavaScript. React component files in this project use the `.jsx` extension.
 
-`client` and `server` are npm workspaces: separate packages managed from a shared project root. `node_modules` contains installed dependencies rather than application source code. A separate Playwright automation project has not been created yet. Generated build output (`client/dist/`) and installed dependencies (`node_modules/`) are excluded from Git.
+`client`, `server` and `automation` are npm workspaces: separate packages managed from a shared project root. `node_modules` contains installed dependencies rather than application source code. The `automation/` workspace contains Playwright fixtures, API and SQL suites, Page Objects, desktop/mobile UI journeys and generated reports. It starts the app with disposable worker databases and controlled providers; see [the automation guide](../automation/README.md). Generated build output (`client/dist/`) and installed dependencies (`node_modules/`) are excluded from Git.
 
 ## 4. Frontend
 
@@ -297,7 +299,7 @@ Configuration is loaded by `config.js`. An example is provided in `server/.env.e
 
 OpenAPI is a structured description of the API contract. Swagger UI renders it as an interface for reading the documentation and sending requests.
 
-`npm test` runs Node tests against a real HTTP server and a separate in-memory SQLite database (`:memory:`). This database exists only for the test process and does not modify the normal practice data. Temporary browser checks are described in the verification report; they are not a full Playwright automation framework.
+`npm test` runs Node tests against a real HTTP server and a separate in-memory SQLite database (`:memory:`). This database exists only for the test process and does not modify the normal practice data. The separate `automation/` workspace now runs maintained Playwright API/DB suites and desktop/mobile UI journeys against disposable file databases. Temporary historical browser checks remain described in the verification report.
 
 ## 14. Current Implementation Boundaries
 

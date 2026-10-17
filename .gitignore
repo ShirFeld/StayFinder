@@ -13,3 +13,7 @@ playwright-report/
 
 # Private QA configuration
 server/qa.env
+
+# Playwright automation artifacts
+automation/reports/
+automation/.auth/

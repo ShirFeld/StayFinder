@@ -106,7 +106,7 @@ Migration `002_checkout_payments.sql` adds checkouts, hold-aware overlap trigger
 
 `server/test/payments.test.js` exercises payment rules using a controlled SDK double. Stripe's real signature validation is used for signed webhook tests. The application has no fake-payment runtime switch or unpaid booking bypass. Existing business-rule tests now go through checkout and simulated provider confirmation rather than immediate booking.
 
-A separate temporary browser smoke test uses the actual Stripe sandbox, hosted card form, and full refund API against an isolated in-memory application database. See `verification.md` for actual results. No full Playwright infrastructure was added.
+A separate temporary browser smoke test uses the actual Stripe sandbox, hosted card form, and full refund API against an isolated in-memory application database. See `verification.md` for actual results. A maintained Playwright workspace now exists in `automation/` with controlled provider scenarios; it does not automatically operate the real Stripe hosted form.
 
 This is a local training integration. Public deployment and live payment processing are not enabled. Reconciliation runs only while the API runs; it processes up to 100 unfinished checkouts per pass. Dashboard-initiated external refunds and disputes are not a separate management workflow. Sandbox setup/availability is controlled by Stripe and account lifecycle and credential validity are managed in the owner’s Stripe Dashboard.
 

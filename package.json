@@ -5,7 +5,8 @@
   "type": "module",
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "automation"
   ],
   "scripts": {
     "dev": "concurrently -k -n API,UI \"npm run dev -w server\" \"npm run dev -w client\"",
@@ -22,7 +23,14 @@
     "qa:db:migrate": "node server/scripts/qa.js migrate",
     "qa:db:seed": "node server/scripts/qa.js seed",
     "qa:db:reset": "node server/scripts/qa.js reset --confirm",
-    "qa:status": "node server/scripts/qa.js status"
+    "qa:status": "node server/scripts/qa.js status",
+    "test:automation": "npm run test -w automation",
+    "test:api": "npm run test:api -w automation",
+    "test:ui": "npm run test:ui -w automation",
+    "test:sanity": "npm run test:sanity -w automation",
+    "test:payments": "npm run test:payments -w automation",
+    "test:db": "npm run test:db -w automation",
+    "test:report": "npm run report -w automation"
   },
   "devDependencies": {
     "@stripe/cli": "^1.54.0",
