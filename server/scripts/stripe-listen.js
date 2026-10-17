@@ -15,7 +15,7 @@ if (!/^(sk|rk|rkcs)_test_/.test(key || ""))
   throw Error(
     "Configure a Stripe test key in server/.env before starting the webhook listener.",
   );
-const data = path.join(serverRoot, "data");
+const data = path.join(serverRoot, "data", "stripe");
 mkdirSync(data, { recursive: true });
 const port = process.env.PORT || 3001;
 const child = spawn(

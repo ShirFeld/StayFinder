@@ -1,6 +1,7 @@
 ﻿node_modules/
 client/dist/
-server/data/
+server/data/*
+!server/data/README.md
 .env
 .env.*
 !.env.example

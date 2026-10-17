@@ -20,7 +20,7 @@ Implemented real Stripe sandbox integration in server/src/payments.js and client
 
 All 22 HTTP/SQLite test groups pass. Actual isolated Chrome UI testing against the real Stripe sandbox passed hosted redirect, declined card without a booking, successful card payment, paid booking confirmation, and full refund through cancellation. Webhook completion/refund delivery returned 200. Build passed. Details are in docs/payments.md and docs/verification.md.
 
-User confirmed the sandbox email directly in chat. A temporary sandbox was provisioned and expires October 24, 2026 unless claimed. Credentials are only in ignored server/.env and server/data; do not print them. The private claim link is in ignored server/data/stripe-sandbox-access.md. The user should run npm run payments:listen in one terminal and npm run dev in another. For built UI on port 3001 set CHECKOUT_ORIGIN accordingly before creating new checkouts. Test card: 4242 4242 4242 4242; future expiry and any three-digit CVC. Sandbox only; live keys are rejected.
+User confirmed the sandbox email directly in chat. A temporary sandbox was provisioned and expires October 24, 2026 unless claimed. Credentials are only in ignored server/.env and server/data; do not print them. The private claim link is in ignored server/data/stripe/stripe-sandbox-access.md. The user should run npm run payments:listen in one terminal and npm run dev in another. For built UI on port 3001 set CHECKOUT_ORIGIN accordingly before creating new checkouts. Test card: 4242 4242 4242 4242; future expiry and any three-digit CVC. Sandbox only; live keys are rejected.
 
 ## Historical conversation context
 

@@ -8,7 +8,7 @@ A quote alone does not reserve dates. Continuing to payment creates a temporary 
 
 ## Local Setup
 
-The current checkout has already been connected to a temporary Stripe sandbox. Its secret key and webhook signing secret are in ignored `server/.env`. The private claim link and expiration date are in ignored `server/data/stripe-sandbox-access.md`. The original temporary claim deadline was October 24, 2026. The owner reported completing the claim on October 17, and the existing sandbox key was subsequently verified successfully. Do not commit credentials or share the claim link.
+The current checkout has already been connected to a temporary Stripe sandbox. Its secret key and webhook signing secret are in ignored `server/.env`. The private claim link and expiration date are in ignored `server/data/stripe/stripe-sandbox-access.md`. The original temporary claim deadline was October 24, 2026. The owner reported completing the claim on October 17, and the existing sandbox key was subsequently verified successfully. Do not commit credentials or share the claim link.
 
 Run these commands from the project root. Use two terminals:
 
