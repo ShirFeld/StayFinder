@@ -10,6 +10,7 @@ import { db, migrate } from "./database.js";
 import { config, today, serverRoot } from "./config.js";
 import { SQLiteSessionStore } from "./session-store.js";
 import { openapi } from "./openapi.js";
+
 export class ApiError extends Error {
   constructor(status, code, message) {
     super(message);
