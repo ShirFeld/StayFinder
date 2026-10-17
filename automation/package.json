@@ -13,7 +13,9 @@
     "test:headed": "playwright test --project=chromium --headed",
     "test:debug": "playwright test --project=chromium --debug",
     "report": "playwright show-report reports/html",
-    "browsers:install": "playwright install chromium"
+    "browsers:install": "playwright install chromium",
+    "test:sanity:ui": "playwright test --project=chromium --grep @sanity --headed --workers=1",
+    "test:sanity:debug": "playwright test --project=chromium --grep @sanity --debug"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1"

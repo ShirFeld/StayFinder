@@ -8,7 +8,7 @@ From the repository root, install Node.js 22 LTS, then run:
 
 ```powershell
 npm ci
-npm exec -w automation -- playwright install chromium
+npm run browsers:install -w automation
 npm run test:sanity
 npm run test:automation
 npm run test:report
@@ -37,7 +37,7 @@ npm run test:debug -w automation
 To run one test by its case ID:
 
 ```powershell
-npm exec -w automation -- playwright test --project=api --grep PAY-06
+npm exec -w automation --call "playwright test --project=api --grep PAY-06"
 ```
 
 ## Structure
@@ -157,3 +157,9 @@ test('customer can reach the catalog', async ({ loginPage, catalogPage }) => {
 `loginPage` and `catalogPage` are fixture names. Playwright creates them on demand, attaches both to the same isolated page for that test and tears down the browser context afterward. Tests do not call `new LoginPage(page)` or duplicate `getByRole`/`getByLabel` selectors. Assertions stay visible in the test; Page Objects expose locators and actions rather than deciding the expected business outcome. Built-in `page` is still used for URL assertions when needed.
 
 The provider substitute stays in `support/hosted-payment-stub.js`: it represents a controlled external boundary, not the real Stripe page. API/DB fixtures remain available in UI tests for arranging data and verifying persisted outcomes.
+
+## Watch UI sanity tests
+
+From the repository root run `npm run test:sanity:ui` to watch the three Chromium sanity journeys, one browser at a time. Use `npm run test:sanity:debug` to step through actions in the Playwright Inspector. The tag `@sanity` defines critical scenarios across both API and UI suites; it does not mean a test is necessarily a browser test. UI sanity cases are UI-01, UI-03 and UI-04 in tests/ui/journeys.spec.js. The file tests/api/sanity.spec.js contains API checks.
+
+On this Windows/npm installation, use named npm scripts or `npm exec -w automation --call "playwright ..."` for custom commands. The alternative `npm exec -w automation -- playwright ...` did not forward arguments correctly during verification and reported No tests found.

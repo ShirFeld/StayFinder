@@ -30,7 +30,9 @@
     "test:sanity": "npm run test:sanity -w automation",
     "test:payments": "npm run test:payments -w automation",
     "test:db": "npm run test:db -w automation",
-    "test:report": "npm run report -w automation"
+    "test:report": "npm run report -w automation",
+    "test:sanity:ui": "npm run test:sanity:ui -w automation",
+    "test:sanity:debug": "npm run test:sanity:debug -w automation"
   },
   "devDependencies": {
     "@stripe/cli": "^1.54.0",

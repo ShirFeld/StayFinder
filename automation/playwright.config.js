@@ -21,6 +21,7 @@ export default defineConfig({
     ["json", { outputFile: "reports/results.json" }],
   ],
   use: {
+    headless: false,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
