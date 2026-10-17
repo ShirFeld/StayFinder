@@ -40,3 +40,8 @@ This section supersedes the original temporary-sandbox deadline and earlier veri
 - Temporary controlled-browser scripts remain under ignored test-results, separate from a future Playwright learning project. The checked-in Node integration tests use injected controlled provider behavior and isolated memory databases.
 
 Limits: this remains a targeted desktop/mobile and keyboard pass, not exhaustive WCAG/screen-reader/cross-browser/load verification. QA payments are disabled by default unless QA-specific sandbox credentials are intentionally configured. No full Playwright framework was introduced.
+
+
+## Repository cleanup - October 17, 2026
+
+Removed ignored one-off development scripts, historical Stripe logs, temporary browser verification scripts, screenshots and browser profiles, and the empty automation placeholder. Historical verification entries above describe checks performed at the time; their temporary artifacts are no longer present. Maintained server tests remain in server/test. Database files and private Stripe setup were preserved. The 29 server tests and frontend production build passed after cleanup; browser flows were not repeated because application code did not change.

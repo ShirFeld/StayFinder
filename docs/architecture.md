@@ -38,41 +38,51 @@ The browser does not open SQLite directly. It requests information from the serv
 
 ```text
 stayfinder/
-├── client/
-│   ├── index.html                 Base HTML document used by React
-│   ├── vite.config.js             Vite configuration and API proxy
-│   ├── public/
-│   │   ├── images/                Local sample photographs
-│   │   └── stay-fallback.svg       Fallback for image loading errors
-│   └── src/
-│       ├── main.jsx               Main screens and routing
-│       ├── admin.jsx              Administration screens
-│       ├── shared.jsx             API requests and shared UI helpers
-│       └── styles.css             Styling and responsive layouts
-├── server/
-│   ├── .env.example               Example environment configuration
-│   ├── data/                      Local database; excluded from Git
-│   ├── migrations/
-│   │   └── 001_initial.sql        Tables, constraints, indexes, and triggers
-│   ├── src/
-│   │   ├── index.js               Server entry point
-│   │   ├── app.js                 API routes, authorization, and business rules
-│   │   ├── payments.js            Checkout holds, verification, and refunds
-│   │   ├── config.js              Configuration and business date
-│   │   ├── database.js            Connection, migrations, seed, and reset
-│   │   ├── session-store.js       SQLite session storage
-│   │   └── openapi.js             API contract definition
-│   └── test/
-│       └── api.test.js            HTTP and SQLite integration tests
-├── docs/                          Requirements, architecture, and verification
-├── package.json                   Shared project commands
-├── package-lock.json              Resolved dependency versions
-└── README.md                      Setup, usage, and limitations
+|-- client/
+|   |-- index.html                 Base HTML document used by React
+|   |-- vite.config.js             Development server and API proxy
+|   |-- public/                    Local photos and fallback image
+|   |-- src/
+|       |-- main.jsx               App, routing, catalog, login and bookings
+|       |-- admin.jsx              Administration screens
+|       |-- checkout.jsx           Payment return, recovery and pending holds
+|       |-- checkout-request.js    Opaque checkout retry tokens
+|       |-- accessibility.jsx      Route focus and confirmation dialog
+|       |-- shared.jsx             API requests and shared UI helpers
+|       |-- styles.css             Styling and responsive layouts
+|-- server/
+|   |-- .env.example               Normal environment configuration example
+|   |-- qa.env.example             Isolated QA configuration example
+|   |-- data/
+|   |   |-- README.md              Guide to local data (tracked in Git)
+|   |   |-- stayfinder.sqlite      Normal database (ignored)
+|   |   |-- qa/                    Isolated QA database (ignored)
+|   |   |-- stripe/                Private CLI configuration and access notes (ignored)
+|   |-- migrations/                Ordered SQL schema changes: 001 through 004
+|   |-- scripts/                   QA launcher and Stripe CLI commands
+|   |-- src/
+|   |   |-- index.js               Server entry point and payment reconciliation
+|   |   |-- app.js                 API routes, authorization and validation
+|   |   |-- payments.js            Checkout holds, verification and refunds
+|   |   |-- config.js              Configuration and business date
+|   |   |-- database.js            Connection, migrations, seed and reset
+|   |   |-- session-store.js       SQLite session storage
+|   |   |-- openapi.js             API contract definition
+|   |-- test/
+|       |-- api.test.js            HTTP and SQLite integration tests
+|       |-- payments.test.js       Payment lifecycle and recovery tests
+|       |-- qa-config.test.js      QA environment isolation checks
+|       |-- stripe-double.js       Controlled Stripe substitute for server tests
+|-- docs/
+|   |-- README.md                  Documentation index
+|-- package.json                   Shared project commands and workspaces
+|-- package-lock.json              Resolved dependency versions
+|-- README.md                      Setup, usage and limitations
 ```
 
 JSX is syntax for describing an HTML-like interface inside JavaScript. React component files in this project use the `.jsx` extension.
 
-`client` and `server` are npm workspaces: separate packages managed from a shared project root. `node_modules` contains installed dependencies rather than application source code. An `automation/` directory also existed during inspection, but the file scan found no automation files inside it; it is not registered as a workspace in the current root `package.json`.
+`client` and `server` are npm workspaces: separate packages managed from a shared project root. `node_modules` contains installed dependencies rather than application source code. A separate Playwright automation project has not been created yet. Generated build output (`client/dist/`) and installed dependencies (`node_modules/`) are excluded from Git.
 
 ## 4. Frontend
 
