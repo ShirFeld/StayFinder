@@ -59,6 +59,10 @@ export function createPayments({
         ? "expired"
         : c.status,
     expiresAt: c.expires_at,
+    serverTime: now(),
+    verificationPending:
+      ["creating", "open"].includes(c.status) && c.expires_at <= now(),
+    refundStatus: c.refund_status,
     checkoutUrl:
       c.expires_at > now() && !c.cancel_requested && c.status === "open"
         ? c.checkout_url
@@ -134,7 +138,7 @@ export function createPayments({
     }
   }
 
-  async function start(user, input, requestKey) {
+  async function start(user, input, requestKey, returnOrigin) {
     configured();
     if (
       typeof requestKey !== "string" ||
@@ -205,7 +209,7 @@ export function createPayments({
           user.email,
           expiry + 60,
           expiry,
-          config.checkoutOrigin,
+          returnOrigin || config.checkoutOrigin,
         );
         return get(id);
       })
@@ -251,10 +255,15 @@ export function createPayments({
         )
           return;
         db.prepare(
-          "UPDATE checkouts SET refund_id=?,status=?,last_error=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          "UPDATE checkouts SET refund_id=?,status=?,refund_status=?,last_error=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
         ).run(
           r.id,
           state === "refunded" ? "refunded" : "refund_pending",
+          state === "refunded"
+            ? "succeeded"
+            : state === "refund_failed"
+              ? "failed"
+              : "pending",
           state === "refund_failed"
             ? "Refund failed; retry cancellation"
             : null,
@@ -310,6 +319,22 @@ export function createPayments({
       );
     }
     verify(c, s);
+    // A cancellation intent survives network failures and is retried by reconciliation.
+    if (c.cancel_requested && s.status === "open") {
+      try {
+        await configured().checkout.sessions.expire(c.stripe_session_id);
+      } catch {}
+      try {
+        s = await configured().checkout.sessions.retrieve(c.stripe_session_id);
+      } catch {
+        fail(
+          503,
+          "PAYMENT_PROVIDER_UNAVAILABLE",
+          "Your cancellation is saved. We are waiting for Stripe before releasing the dates.",
+        );
+      }
+      verify(c, s);
+    }
     if (s.payment_status === "paid" && s.status === "complete") {
       const paymentIntent = objectId(s.payment_intent);
       if (!paymentIntent)
@@ -352,7 +377,7 @@ export function createPayments({
             ["cancelled", "expired", "failed"].includes(fresh.status)
           ) {
             db.prepare(
-              "UPDATE checkouts SET status='refund_pending',payment_intent_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+              "UPDATE checkouts SET status='refund_pending',refund_status='pending',payment_intent_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
             ).run(paymentIntent, id);
             return get(id);
           }
@@ -424,11 +449,11 @@ export function createPayments({
           ).run(row.id);
           if (row.checkout_id)
             db.prepare(
-              "UPDATE checkouts SET status='refund_pending',updated_at=CURRENT_TIMESTAMP WHERE id=?",
+              "UPDATE checkouts SET status='refund_pending',refund_status='pending',updated_at=CURRENT_TIMESTAMP WHERE id=?",
             ).run(row.checkout_id);
         } else if (row.payment_status === "refund_failed") {
           db.prepare(
-            "UPDATE checkouts SET refund_id=NULL,refund_attempt=refund_attempt+1,last_error=NULL WHERE id=?",
+            "UPDATE checkouts SET refund_id=NULL,refund_attempt=refund_attempt+1,refund_status='pending',last_error=NULL WHERE id=?",
           ).run(row.checkout_id);
           db.prepare(
             "UPDATE bookings SET payment_status='refund_pending',refund_id=NULL WHERE id=?",
@@ -440,6 +465,31 @@ export function createPayments({
     if (b.checkout_id && b.payment_status !== "refunded")
       await refund(get(b.checkout_id));
     return bookingOut(db.prepare(bookingSelect + " WHERE b.id=?").get(b.id));
+  }
+
+  async function retryRefund(id, userId) {
+    const c = db
+      .transaction(() => {
+        const row = owner(id, userId);
+        if (row.status === "refunded") return row;
+        if (row.status !== "refund_pending")
+          fail(
+            409,
+            "REFUND_NOT_AVAILABLE",
+            "No refund is awaiting recovery for this checkout.",
+          );
+        if (row.refund_status === "failed") {
+          db.prepare(
+            "UPDATE checkouts SET refund_id=NULL,refund_attempt=refund_attempt+1,refund_status='pending',last_error=NULL WHERE id=?",
+          ).run(id);
+          db.prepare(
+            "UPDATE bookings SET refund_id=NULL,payment_status='refund_pending' WHERE checkout_id=?",
+          ).run(id);
+        }
+        return get(id);
+      })
+      .immediate();
+    return c.status === "refunded" ? out(c) : refund(c);
   }
 
   async function webhook(req, res) {
@@ -520,6 +570,7 @@ export function createPayments({
     webhook,
     cancelCheckout,
     cancelBooking,
+    retryRefund,
     reconcile,
     synchronize,
     owner,

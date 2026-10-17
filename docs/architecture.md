@@ -294,3 +294,9 @@ OpenAPI is a structured description of the API contract. Swagger UI renders it a
 The project is intended for learning and local execution. It does not include live payments, email delivery, public registration, password recovery, or a full Playwright framework. Admin tables are not paginated. Weather responses have no local cache. Expired sessions are rejected, but there is no background process to remove their records.
 
 Server code is intentionally concentrated in a small number of files rather than separate services. Sample photographs are bundled locally; admin-added images and fonts may load from external sources. The local verification checks do not replace complete load, security, and accessibility testing before public deployment.
+
+## 15. Stabilization and QA isolation
+
+The frontend adds accessibility.jsx for route focus and native confirmation dialogs, and checkout-request.js for opaque tab-local retry tokens. Business state remains server-side. payments.js persists cancellation recovery and explicit checkout refund status; migration 004_refund_recovery_status.sql adds that field without deleting data. GET checkout responses distinguish a locally expired hold from a provider-verified terminal state and include server time.
+
+The QA launcher in server/scripts/qa.js uses qa-config.js to enforce a separate database under server/data/qa, ports 3002/5174, a distinct session cookie and explicitly configured QA provider credentials. Swagger reflects the configured cookie name. Vite accepts a QA-specific API target. See [the behavior contract](stabilization.md) and [QA guide](qa-environment.md).

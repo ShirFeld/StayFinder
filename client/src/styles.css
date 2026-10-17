@@ -948,3 +948,73 @@ td select {
 .checkout-page .fine {
   margin-top: 25px;
 }
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  background: #12675e;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 6px;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: none;
+}
+main:focus,
+h1:focus {
+  outline: none;
+}
+.confirmation-dialog {
+  max-width: 520px;
+  width: calc(100% - 32px);
+  border: 1px solid #d8e0dc;
+  border-radius: 12px;
+  padding: 28px;
+  color: #173d49;
+  background: #fcfcf9;
+}
+.confirmation-dialog::backdrop {
+  background: #123340aa;
+}
+.confirmation-dialog h2 {
+  font-size: 28px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.confirmation-dialog .notice {
+  margin: 12px 0;
+}
+.payment-state {
+  border-left: 4px solid #8caea0;
+}
+.payment-state.warning {
+  background: #fff4df;
+  border-color: #bb8a35;
+}
+.status-note {
+  font-size: 13px;
+  color: #55716e;
+}
+.checkout-page .payment-total {
+  flex-wrap: wrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+.notice.warning {
+  background: #fff4df;
+  color: #6e5220;
+}

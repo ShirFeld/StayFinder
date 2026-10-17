@@ -9,3 +9,6 @@ server/data/
 test-results/
 playwright-report/
 *.log
+
+# Private QA configuration
+server/qa.env

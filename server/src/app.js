@@ -209,13 +209,22 @@ export function createApp({ stripe } = {}) {
     asyncRoute(payments.webhook),
   );
   app.use(express.json({ limit: "100kb" }));
+  const allowedOrigins = new Set([config.origin]);
+  const configuredOrigin = new URL(config.origin);
+  if (["localhost", "127.0.0.1"].includes(configuredOrigin.hostname)) {
+    for (const hostname of ["localhost", "127.0.0.1"]) {
+      const alias = new URL(config.origin);
+      alias.hostname = hostname;
+      allowedOrigins.add(alias.origin);
+    }
+  }
   app.use("/api", (req, res, next) => {
     res.set("Cache-Control", "no-store");
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
       const origin = req.get("origin");
       if (
         origin &&
-        origin !== config.origin &&
+        !allowedOrigins.has(origin) &&
         !(origin === req.protocol + "://" + req.get("host"))
       )
         return next(
@@ -230,7 +239,7 @@ export function createApp({ stripe } = {}) {
   });
   app.use(
     session({
-      name: "stayfinder.sid",
+      name: config.sessionName,
       secret: config.secret,
       store: new SQLiteSessionStore(),
       resave: false,
@@ -316,7 +325,7 @@ export function createApp({ stripe } = {}) {
       await new Promise((resolve, reject) =>
         req.session.destroy((e) => (e ? reject(e) : resolve())),
       );
-      res.clearCookie("stayfinder.sid", {
+      res.clearCookie(config.sessionName, {
         httpOnly: true,
         sameSite: "lax",
         secure: config.production,
@@ -438,6 +447,13 @@ export function createApp({ stripe } = {}) {
         .map(bookingOut),
     }),
   );
+  app.post(
+    "/api/checkouts/:id/refund",
+    auth,
+    asyncRoute(async (req, res) =>
+      res.json(await payments.retryRefund(req.params.id, req.user.id)),
+    ),
+  );
   // Direct booking is intentionally disabled: payment cannot be bypassed.
   app.post("/api/bookings", auth, (req, res) =>
     fail(
@@ -453,7 +469,12 @@ export function createApp({ stripe } = {}) {
       res
         .status(201)
         .json(
-          await payments.start(req.user, req.body, req.get("Idempotency-Key")),
+          await payments.start(
+            req.user,
+            req.body,
+            req.get("Idempotency-Key"),
+            req.get("origin"),
+          ),
         ),
     ),
   );

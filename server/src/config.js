@@ -6,6 +6,7 @@ export const serverRoot = path.resolve(
   "..",
 );
 export const config = {
+  sessionName: process.env.SESSION_COOKIE_NAME || "stayfinder.sid",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
   checkoutOrigin:

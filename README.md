@@ -6,9 +6,15 @@ A local full-stack vacation accommodation booking demo for learning UI, API and 
 
 The current booking flow requires payment verification: sign in, choose dates, continue to hosted Stripe Checkout, and pay with a test card. Dates are held for approximately 31 minutes. A confirmed booking is created only after server verification. Cancelling an eligible paid booking requests a full sandbox refund; pending/failed refunds are shown honestly and retried safely.
 
-Start the local event listener with `npm run payments:listen` in one terminal, then `npm run dev` in another. The current checkout already has sandbox credentials in ignored `server/.env`. The temporary sandbox expires October 24, 2026; its private claim link is in ignored `server/data/stripe-sandbox-access.md`. Read [the payment setup and test guide](docs/payments.md) for test cards, callback settings, recovery, and fresh-clone configuration.
+Start the local event listener with `npm run payments:listen` in one terminal, then `npm run dev` in another. The current checkout already has sandbox credentials in ignored `server/.env`. The owner reported claiming the sandbox on October 17, 2026, and the existing credential was verified successfully. Account lifecycle is managed in Stripe Dashboard; private setup information remains in ignored `server/data/stripe-sandbox-access.md`. Read [the payment setup and test guide](docs/payments.md) for test cards, callback settings, recovery, and fresh-clone configuration.
 
 Use `4242 4242 4242 4242`, a future expiry date, and any three-digit CVC for a successful sandbox payment. Never enter real card details. No real money moves.
+
+## Stabilization and isolated QA
+
+The current flow includes cancellation confirmation, retained search filters/page, checkout recovery after refresh/browser close/session expiry, and separate pending/failed/completed refund messages. See [the behavior contract](docs/stabilization.md).
+
+For isolated local practice, run `npm run qa:db:reset` explicitly, then `npm run qa:dev`. QA uses UI port 5174, API port 3002, a separate database and cookie, and no inherited payment credentials. `npm run qa:status` shows its configuration and data counts. Controlled payment tests remain available through `npm test`; no full Playwright framework has been added. Read [the QA setup guide](docs/qa-environment.md) before automating.
 
 ## Requirements and Windows setup
 

@@ -8,7 +8,7 @@ A quote alone does not reserve dates. Continuing to payment creates a temporary 
 
 ## Local Setup
 
-The current checkout has already been connected to a temporary Stripe sandbox. Its secret key and webhook signing secret are in ignored `server/.env`. The private claim link and expiration date are in ignored `server/data/stripe-sandbox-access.md`. The sandbox expires on **October 24, 2026** unless claimed. Do not commit credentials or share the claim link.
+The current checkout has already been connected to a temporary Stripe sandbox. Its secret key and webhook signing secret are in ignored `server/.env`. The private claim link and expiration date are in ignored `server/data/stripe-sandbox-access.md`. The original temporary claim deadline was October 24, 2026. The owner reported completing the claim on October 17, and the existing sandbox key was subsequently verified successfully. Do not commit credentials or share the claim link.
 
 Run these commands from the project root. Use two terminals:
 
@@ -108,7 +108,7 @@ Migration `002_checkout_payments.sql` adds checkouts, hold-aware overlap trigger
 
 A separate temporary browser smoke test uses the actual Stripe sandbox, hosted card form, and full refund API against an isolated in-memory application database. See `verification.md` for actual results. No full Playwright infrastructure was added.
 
-This is a local training integration. Public deployment and live payment processing are not enabled. Reconciliation runs only while the API runs; it processes up to 100 unfinished checkouts per pass. Dashboard-initiated external refunds and disputes are not a separate management workflow. Sandbox setup/availability is controlled by Stripe and the temporary sandbox must be claimed before expiry.
+This is a local training integration. Public deployment and live payment processing are not enabled. Reconciliation runs only while the API runs; it processes up to 100 unfinished checkouts per pass. Dashboard-initiated external refunds and disputes are not a separate management workflow. Sandbox setup/availability is controlled by Stripe and account lifecycle and credential validity are managed in the owner’s Stripe Dashboard.
 
 ## Official References
 
@@ -117,3 +117,7 @@ This is a local training integration. Public deployment and live payment process
 - [Checkout payment fulfillment and webhooks](https://docs.stripe.com/checkout/fulfillment)
 - [Refund creation](https://docs.stripe.com/api/refunds/create)
 - [Test cards](https://docs.stripe.com/testing)
+
+## Stabilization update
+
+Read [stabilization.md](stabilization.md) for current refresh/back/session recovery, cancellation confirmation, price locking and explicit refund behavior. Checkout responses now include serverTime, verificationPending and refundStatus. Failed full refunds without a booking can be retried with POST /api/checkouts/:id/refund. Saved checkout cancellation is retried by background reconciliation after network failure. The return origin comes from the already validated browser Origin header when present, and remains fixed for provider retries.

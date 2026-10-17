@@ -26,3 +26,17 @@ No test bookings were added to the practice database: automated API/UI checks us
 - Desktop confirmation and mobile paid/refunded booking screenshots were inspected. The mobile booking page has no horizontal page overflow.
 - Browser tests use a separate in-memory application database and dedicated port 3011; no test reservations were inserted into the practice database. Remote Stripe sandbox payment/refund objects remain as test records. Existing practice data is preserved by additive migrations.
 - No full Playwright framework was added. A 3-D Secure challenge, multi-process load test, public deployment, real payments and externally initiated dispute/refund management remain outside this verification. The temporary sandbox expires October 24, 2026 unless claimed.
+
+## Stabilization Pass — October 17, 2026 (Current)
+
+This section supersedes the original temporary-sandbox deadline and earlier verification counts where applicable.
+
+- The owner reported completing Stripe sandbox claim. The existing sandbox key was verified afterward; a real hosted Checkout browser run passed declined card, successful card payment, confirmation, the new cancellation dialog, and full refund. Account lifecycle remains managed in the owner's Dashboard.
+- All **29 Node HTTP/SQLite test groups** pass. New cases cover saved cancellation recovery after outage, explicit failed-refund retry without a booking, locally expired/unverified payment state, accepted local origins/rejected foreign origins, immutable browser return origin, and QA reset/credential isolation.
+- Production build and additive migration checks pass. Migration 004 preserves existing data and adds explicit refund recovery state.
+- Controlled Chrome browser checks passed search/filter/sort/page preservation, route heading focus, refresh, actual browser close/reopen with the same hold, detail-page resume, delayed provider confirmation, exactly one booking, native cancellation dialog, default Keep booking focus, Tab, Escape, focus restoration, pending refund feedback and retry, expired-session reauthentication to the original checkout, and skip-to-main navigation.
+- Desktop checkout status and mobile dialog/refund screenshots were inspected. No JavaScript exceptions or horizontal page overflow occurred in the checked mobile flows.
+- QA development startup was checked on ports 5174/3002. Vite proxy, 12 seeded units, HttpOnly `stayfinder.qa.sid`, and matching Swagger cookie metadata passed real HTTP checks. Only the QA database was explicitly reset; normal application data was not reset.
+- Temporary controlled-browser scripts remain under ignored test-results, separate from a future Playwright learning project. The checked-in Node integration tests use injected controlled provider behavior and isolated memory databases.
+
+Limits: this remains a targeted desktop/mobile and keyboard pass, not exhaustive WCAG/screen-reader/cross-browser/load verification. QA payments are disabled by default unless QA-specific sandbox credentials are intentionally configured. No full Playwright framework was introduced.

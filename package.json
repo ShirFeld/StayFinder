@@ -15,7 +15,14 @@
     "db:seed": "npm run db:seed -w server",
     "db:reset": "npm run db:reset -w server -- --confirm",
     "test": "npm run test -w server",
-    "payments:listen": "node server/scripts/stripe-listen.js"
+    "payments:listen": "node server/scripts/stripe-listen.js",
+    "qa:dev": "node server/scripts/qa.js dev",
+    "qa:api": "node server/scripts/qa.js api",
+    "qa:client": "node server/scripts/qa.js client",
+    "qa:db:migrate": "node server/scripts/qa.js migrate",
+    "qa:db:seed": "node server/scripts/qa.js seed",
+    "qa:db:reset": "node server/scripts/qa.js reset --confirm",
+    "qa:status": "node server/scripts/qa.js status"
   },
   "devDependencies": {
     "@stripe/cli": "^1.54.0",
