@@ -14,9 +14,11 @@
     "db:migrate": "npm run db:migrate -w server",
     "db:seed": "npm run db:seed -w server",
     "db:reset": "npm run db:reset -w server -- --confirm",
-    "test": "npm run test -w server"
+    "test": "npm run test -w server",
+    "payments:listen": "node server/scripts/stripe-listen.js"
   },
   "devDependencies": {
+    "@stripe/cli": "^1.54.0",
     "concurrently": "^9.1.2"
   }
 }

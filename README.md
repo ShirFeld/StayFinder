@@ -2,6 +2,14 @@
 
 A local full-stack vacation accommodation booking demo for learning UI, API and SQL testing. React + Vite (JavaScript), Express (JavaScript), SQLite, session cookies and Swagger UI. All listings and accounts are fictional practice data; stock photographs illustrate a style of accommodation and are not photographs of real bookable properties. No reviews are fabricated or displayed.
 
+## Sandbox payment checkout
+
+The current booking flow requires payment verification: sign in, choose dates, continue to hosted Stripe Checkout, and pay with a test card. Dates are held for approximately 31 minutes. A confirmed booking is created only after server verification. Cancelling an eligible paid booking requests a full sandbox refund; pending/failed refunds are shown honestly and retried safely.
+
+Start the local event listener with `npm run payments:listen` in one terminal, then `npm run dev` in another. The current checkout already has sandbox credentials in ignored `server/.env`. The temporary sandbox expires October 24, 2026; its private claim link is in ignored `server/data/stripe-sandbox-access.md`. Read [the payment setup and test guide](docs/payments.md) for test cards, callback settings, recovery, and fresh-clone configuration.
+
+Use `4242 4242 4242 4242`, a future expiry date, and any three-digit CVC for a successful sandbox payment. Never enter real card details. No real money moves.
+
 ## Requirements and Windows setup
 
 Node.js 22 LTS and npm, VS Code, Windows PowerShell. SQLite is bundled through better-sqlite3; no separate database service is needed. A supported Node version matters because better-sqlite3 is a native dependency. Run commands from the project root:
@@ -71,22 +79,26 @@ Non-2xx HTTP, malformed JSON/schema, network errors or timeout return 503 WEATHE
 
 - client/src/main.jsx: routes, home, search, detail, login and bookings.
 - client/src/admin.jsx: accommodation, user and booking administration.
+- client/src/checkout.jsx: hosted-payment return, verification and hold recovery.
 - client/src/shared.jsx: fetch wrapper, async state and image fallback.
 - client/src/styles.css: desktop and mobile presentation.
 - server/src/app.js: API validation, authorization and business operations.
+- server/src/payments.js: Stripe Checkout, holds, verification, cancellation and refunds.
+- server/scripts/stripe-listen.js: local webhook forwarding.
 - server/src/database.js and server/migrations/: connection, migrations and explicit seed/reset.
 - server/src/session-store.js: durable SQLite session store.
 - server/src/openapi.js: API contract rendered by Swagger UI.
 - server/test/api.test.js: Node HTTP integration checks, not a Playwright project.
 - docs/: requirements, architecture and SQL practice.
 
-UI form → same-origin /api fetch (Vite proxy in development) → Express session and role checks → input/business validation → SQLite query or immediate transaction → JSON → UI loading, success or error state. Booking insert checks availability and snapshots the server price in one transaction. SQLite triggers also reject overlaps; cancellation changes status rather than deleting history. Money is not recalculated when listing prices change.
+UI form → same-origin /api fetch (Vite proxy in development) → Express session and role checks → input/business validation → SQLite query or immediate transaction → JSON → UI loading, success or error state. Checkout creation atomically checks availability and snapshots the server price in a temporary hold. Verified Stripe payment creates the booking in a separate immediate transaction. SQLite triggers also reject overlaps; cancellation changes status rather than deleting history. Money is not recalculated when listing prices change.
 
 ## Scope and limitations
 
-Local training application: no real payments, email, public registration, password reset, file uploads, reviews, or full Playwright automation project. Admin users can create accounts and change roles/status; profile editing and password rotation are not implemented. Core sample photos are bundled locally (see docs/image-credits.md); admin-added photos and fonts use external services with local image/system font fallbacks. Stock photos may differ from the fictional destination. Weather has no cache and no service guarantee. Admin tables are unpaginated, suitable for this small demo. Sessions expire after one day; expired records are ignored, but background database cleanup is not implemented. Production deployment, monitoring and an advanced CSRF token flow are outside this local demo; same-site cookies and mutation Origin checks are present.
+Local training application: no live payments, email, public registration, password reset, file uploads, reviews, or full Playwright automation project. Admin users can create accounts and change roles/status; profile editing and password rotation are not implemented. Core sample photos are bundled locally (see docs/image-credits.md); admin-added photos and fonts use external services with local image/system font fallbacks. Stock photos may differ from the fictional destination. Weather has no cache and no service guarantee. Admin tables are unpaginated, suitable for this small demo. Sessions expire after one day; expired records are ignored, but background database cleanup is not implemented. Production deployment, monitoring and an advanced CSRF token flow are outside this local demo; same-site cookies and mutation Origin checks are present.
 
 ## Verification
 
 `npm test` exercises a real listening Express server: seed counts, filtering, sort, pagination, authentication/logout/HttpOnly cookie, role boundaries, invalid dates and guests, competing requests, adjacent bookings, price snapshots, cancellation ownership/idempotency/cutoff, property CRUD/deactivation, unique emails, self-lockout, disabled sessions, provider success/error/timeout, OpenAPI and SQL overlap triggers. `npm run build` verifies production bundling. UI checks and their results are documented in docs/verification.md.
+
 #

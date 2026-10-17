@@ -915,3 +915,36 @@ td select {
     padding: 10px 13px;
   }
 }
+
+.checkout-page {
+  max-width: 850px;
+}
+.payment-summary {
+  padding: 28px;
+  border: 1px solid #dfe5dc;
+  background: white;
+  border-radius: 10px;
+  margin: 25px 0;
+}
+.payment-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #dfe5dc;
+  padding-top: 18px;
+  gap: 15px;
+}
+.pending-checkouts {
+  margin: 30px 0;
+}
+.checkout-page .booking-panel {
+  max-width: none;
+}
+.checkout-page .tabs {
+  flex-wrap: wrap;
+}
+.checkout-page .tabs button {
+  width: auto;
+}
+.checkout-page .fine {
+  margin-top: 25px;
+}

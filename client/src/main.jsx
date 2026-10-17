@@ -29,6 +29,7 @@ import {
   Load,
 } from "./shared";
 import { Admin } from "./admin";
+import { CheckoutPage, PendingCheckouts } from "./checkout";
 import "./styles.css";
 function App() {
   const [user, setUser] = useState(null),
@@ -94,6 +95,10 @@ function App() {
                   </div>
                 )
               }
+            />
+            <Route
+              path="/checkout/:id"
+              element={<CheckoutPage user={user} />}
             />
             <Route path="/admin" element={<Admin user={user} />} />
             <Route
@@ -482,11 +487,11 @@ function Detail({ user }) {
     [quote, setQuote] = useState(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [booking, setBooking] = useState(null);
+    [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
   function update(k, v) {
     setRange({ ...range, [k]: v });
     setQuote(null);
-    setBooking(null);
+    setCheckoutKey(crypto.randomUUID());
     setError("");
   }
   async function check(e) {
@@ -510,18 +515,20 @@ function Detail({ user }) {
     setBusy(true);
     setError("");
     try {
-      setBooking(
-        await send("/bookings", {
+      const checkout = await api("/checkouts", {
+        method: "POST",
+        headers: { "Idempotency-Key": checkoutKey },
+        body: JSON.stringify({
           propertyId: Number(id),
           ...range,
           guests: Number(range.guests),
         }),
-      );
+      });
+      if (checkout.checkoutUrl) window.location.assign(checkout.checkoutUrl);
+      else window.location.assign("/checkout/" + checkout.id);
     } catch (e) {
       setError(e.message);
-    } finally {
       setBusy(false);
-      setQuote(null);
     }
   }
   const p = state.data;
@@ -612,7 +619,7 @@ function Detail({ user }) {
                     <p className="muted">USD · No additional fees</p>
                     {user ? (
                       <button disabled={busy} onClick={book}>
-                        Confirm booking
+                        Continue to payment
                       </button>
                     ) : (
                       <Link
@@ -629,18 +636,10 @@ function Detail({ user }) {
                     )}
                   </div>
                 )}
-                {booking && (
-                  <div className="notice success" role="status">
-                    <h3>Your escape is booked!</h3>
-                    <p>
-                      Confirmation #{booking.id} · {money(booking.total_cents)}
-                    </p>
-                    <Link to="/bookings">View my bookings →</Link>
-                  </div>
-                )}
                 <p className="muted fine">
-                  A quote does not reserve dates. Availability is checked again
-                  when you confirm.
+                  Test payments only. Your dates are held temporarily when you
+                  continue to Stripe. The booking is confirmed only after
+                  payment succeeds.
                 </p>
               </aside>
             </div>
@@ -746,8 +745,16 @@ function Bookings() {
     setBusy(id);
     setError("");
     try {
-      await send("/bookings/" + id + "/cancel");
-      setMessage("Booking cancelled. Your dates have been released.");
+      const result = await send("/bookings/" + id + "/cancel");
+      setMessage(
+        result.payment_status === "refunded"
+          ? "Booking cancelled. Full test refund completed."
+          : result.payment_status === "legacy"
+            ? "Booking cancelled. No payment was taken for this older booking."
+            : result.payment_status === "refund_failed"
+              ? "Booking cancelled. The refund failed; use Retry refund."
+              : "Booking cancelled. Full refund is awaiting Stripe confirmation; your dates have been released.",
+      );
       state.reload();
     } catch (e) {
       setError(e.message);
@@ -759,6 +766,7 @@ function Bookings() {
     <div className="container section">
       <p className="eyebrow">ALL YOUR ADVENTURES, IN ONE PLACE</p>
       <h1>My bookings</h1>
+      <PendingCheckouts />
       <ErrorBox error={error} />
       {message && (
         <p className="notice success" role="status">
@@ -784,6 +792,24 @@ function Bookings() {
                     Confirmation #{b.id} · {money(b.nightly_price_cents)} per
                     night at booking
                   </p>
+                  <p className="muted">
+                    Payment:{" "}
+                    {b.payment_status === "legacy"
+                      ? "No payment (older booking)"
+                      : b.payment_status?.replaceAll("_", " ")}
+                  </p>
+                  {b.status === "cancelled" &&
+                    ["refund_pending", "refund_failed"].includes(
+                      b.payment_status,
+                    ) && (
+                      <button
+                        className="outline"
+                        disabled={busy === b.id}
+                        onClick={() => cancel(b.id)}
+                      >
+                        {busy === b.id ? "Checking refund..." : "Retry refund"}
+                      </button>
+                    )}
                   {b.status === "confirmed" &&
                   health.data &&
                   b.check_in > health.data.today ? (
@@ -792,7 +818,11 @@ function Bookings() {
                       disabled={busy === b.id}
                       onClick={() => cancel(b.id)}
                     >
-                      {busy === b.id ? "Cancelling…" : "Cancel booking"}
+                      {busy === b.id
+                        ? "Cancelling…"
+                        : b.payment_status === "legacy"
+                          ? "Cancel booking"
+                          : "Cancel booking & full refund"}
                     </button>
                   ) : (
                     b.status === "confirmed" && (

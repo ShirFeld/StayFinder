@@ -343,6 +343,7 @@ function Bookings() {
                   "Dates",
                   "Total",
                   "Status",
+                  "Payment",
                 ].map((t) => (
                   <th key={t}>{t}</th>
                 ))}
@@ -363,6 +364,7 @@ function Bookings() {
                   </td>
                   <td>{money(b.total_cents)}</td>
                   <td>{b.status}</td>
+                  <td>{b.payment_status?.replaceAll("_", " ")}</td>
                 </tr>
               ))}
             </tbody>
