@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -6,6 +6,7 @@ import {
   Route,
   Link,
   useNavigate,
+  useLocation,
   useParams,
   useSearchParams,
 } from "react-router-dom";
@@ -29,9 +30,17 @@ import {
   Load,
 } from "./shared";
 import { Admin } from "./admin";
-import { CheckoutPage, PendingCheckouts } from "./checkout";
+import { CheckoutPage, PendingCheckouts, paymentLabels } from "./checkout";
+import { RouteFocus, ConfirmDialog } from "./accessibility";
+import { checkoutRequestKey, forgetCheckoutRequest } from "./checkout-request";
 import "./styles.css";
 function App() {
+  const currentLocation = useLocation();
+  const signInTarget =
+    currentLocation.pathname === "/login"
+      ? "/login"
+      : "/login?next=" +
+        encodeURIComponent(currentLocation.pathname + currentLocation.search);
   const [user, setUser] = useState(null),
     [ready, setReady] = useState(false),
     [error, setError] = useState("");
@@ -41,6 +50,18 @@ function App() {
       .catch((e) => setError(e.message))
       .finally(() => setReady(true));
   }, []);
+  useEffect(() => {
+    const expire = () => {
+      setUser(null);
+      setError("Your session expired. Please sign in again.");
+    };
+    window.addEventListener("stayfinder:session-expired", expire);
+    return () =>
+      window.removeEventListener("stayfinder:session-expired", expire);
+  }, []);
+  useEffect(() => {
+    if (user) setError("");
+  }, [user?.id]);
   async function logout() {
     try {
       await send("/auth/logout");
@@ -52,12 +73,15 @@ function App() {
   }
   return (
     <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header>
         <Link className="brand" to="/">
           <Waves />
           StayFinder<span>.</span>
         </Link>
-        <nav>
+        <nav aria-label="Main navigation">
           <Link to="/stays">Explore stays</Link>
           {user && <Link to="/bookings">My bookings</Link>}
           {user?.role === "admin" && <Link to="/admin">Admin</Link>}
@@ -66,14 +90,15 @@ function App() {
               Sign out
             </button>
           ) : (
-            <Link className="button small" to="/login">
+            <Link className="button small" to={signInTarget}>
               Sign in <ArrowRight size={15} />
             </Link>
           )}
         </nav>
       </header>
       <ErrorBox error={error} />
-      <main>
+      <main id="main-content" tabIndex={-1}>
+        {ready && <RouteFocus />}
         {ready ? (
           <Routes>
             <Route path="/" element={<Home />} />
@@ -362,7 +387,12 @@ function Catalog() {
                 min="0"
                 value={q[k] ? Number(q[k]) / 100 : ""}
                 onChange={(e) =>
-                  change(k, e.target.value ? Number(e.target.value) * 100 : "")
+                  change(
+                    k,
+                    e.target.value
+                      ? Math.round(Number(e.target.value) * 100)
+                      : "",
+                  )
                 }
               />
             </label>
@@ -417,7 +447,7 @@ function Catalog() {
                     <Card key={p.id} p={p} query={"?" + params} />
                   ))}
                 </div>
-                <div className="pagination">
+                <nav className="pagination" aria-label="Search results pages">
                   <button
                     className="outline"
                     disabled={state.data.page <= 1}
@@ -435,7 +465,7 @@ function Catalog() {
                   >
                     Next
                   </button>
-                </div>
+                </nav>
               </>
             ) : (
               <div className="empty">
@@ -477,7 +507,7 @@ function Weather({ id }) {
 }
 function Detail({ user }) {
   const { id } = useParams(),
-    [params] = useSearchParams(),
+    [params, setParams] = useSearchParams(),
     state = useLoad("/properties/" + id),
     [range, setRange] = useState({
       checkIn: params.get("checkIn") || "",
@@ -486,12 +516,35 @@ function Detail({ user }) {
     }),
     [quote, setQuote] = useState(null),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [checkoutKey, setCheckoutKey] = useState(() => crypto.randomUUID());
+    [busy, setBusy] = useState(false);
+  const recovery = useLoad(user ? "/checkouts" : null);
+  const pending = recovery.data?.items.find(
+    (c) =>
+      c.propertyId === Number(id) &&
+      c.checkIn === range.checkIn &&
+      c.checkOut === range.checkOut &&
+      c.guests === Number(range.guests) &&
+      ["creating", "open"].includes(c.status),
+  );
+  const generation = useRef(0);
+  const backToSearch = "/stays" + (params.size ? "?" + params.toString() : "");
+  useEffect(() => {
+    generation.current++;
+    setRange({
+      checkIn: params.get("checkIn") || "",
+      checkOut: params.get("checkOut") || "",
+      guests: params.get("guests") || 2,
+    });
+    setQuote(null);
+  }, [params.toString()]);
   function update(k, v) {
     setRange({ ...range, [k]: v });
     setQuote(null);
-    setCheckoutKey(crypto.randomUUID());
+    generation.current++;
+    const next = new URLSearchParams(params);
+    if (v !== "") next.set(k, v);
+    else next.delete(k);
+    setParams(next, { replace: true });
     setError("");
   }
   async function check(e) {
@@ -499,14 +552,14 @@ function Detail({ user }) {
     setBusy(true);
     setError("");
     setQuote(null);
+    const currentGeneration = ++generation.current;
     try {
-      setQuote(
-        await api(
-          "/properties/" + id + "/availability?" + new URLSearchParams(range),
-        ),
+      const result = await api(
+        "/properties/" + id + "/availability?" + new URLSearchParams(range),
       );
+      if (currentGeneration === generation.current) setQuote(result);
     } catch (e) {
-      setError(e.message);
+      if (currentGeneration === generation.current) setError(e.message);
     } finally {
       setBusy(false);
     }
@@ -517,13 +570,15 @@ function Detail({ user }) {
     try {
       const checkout = await api("/checkouts", {
         method: "POST",
-        headers: { "Idempotency-Key": checkoutKey },
+        headers: { "Idempotency-Key": checkoutRequestKey(user.id, id, range) },
         body: JSON.stringify({
           propertyId: Number(id),
           ...range,
           guests: Number(range.guests),
         }),
       });
+      if (!["creating", "open"].includes(checkout.status))
+        forgetCheckoutRequest(user.id, checkout);
       if (checkout.checkoutUrl) window.location.assign(checkout.checkoutUrl);
       else window.location.assign("/checkout/" + checkout.id);
     } catch (e) {
@@ -534,7 +589,7 @@ function Detail({ user }) {
   const p = state.data;
   return (
     <div className="container section">
-      <Link className="text-link" to="/stays">
+      <Link className="text-link" to={backToSearch}>
         ← All stays
       </Link>
       <Load state={state}>
@@ -580,6 +635,7 @@ function Detail({ user }) {
                     Check in
                     <input
                       required
+                      disabled={busy}
                       type="date"
                       value={range.checkIn}
                       onChange={(e) => update("checkIn", e.target.value)}
@@ -589,6 +645,7 @@ function Detail({ user }) {
                     Check out
                     <input
                       required
+                      disabled={busy}
                       type="date"
                       value={range.checkOut}
                       onChange={(e) => update("checkOut", e.target.value)}
@@ -598,6 +655,7 @@ function Detail({ user }) {
                     Guests
                     <input
                       required
+                      disabled={busy}
                       type="number"
                       min="1"
                       max={p.capacity}
@@ -610,7 +668,19 @@ function Detail({ user }) {
                   </button>
                 </form>
                 <ErrorBox error={error} />
-                {quote && (
+                {pending && (
+                  <div className="notice" role="status">
+                    <h3>You already have a checkout for these dates</h3>
+                    <p>
+                      Your dates are held. Resume it instead of starting another
+                      payment.
+                    </p>
+                    <Link className="button" to={"/checkout/" + pending.id}>
+                      Resume your checkout
+                    </Link>
+                  </div>
+                )}
+                {quote && !pending && (
                   <div className="quote">
                     <p>
                       {quote.nights} nights × {money(quote.nightlyPriceCents)}
@@ -627,7 +697,7 @@ function Detail({ user }) {
                         to={
                           "/login?next=" +
                           encodeURIComponent(
-                            "/stays/" + id + "?" + new URLSearchParams(range),
+                            "/stays/" + id + "?" + params.toString(),
                           )
                         }
                       >
@@ -740,12 +810,19 @@ function Bookings() {
     health = useLoad("/health"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(null),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [messageTone, setMessageTone] = useState("success"),
+    [selected, setSelected] = useState(null);
   async function cancel(id) {
     setBusy(id);
     setError("");
     try {
       const result = await send("/bookings/" + id + "/cancel");
+      setMessageTone(
+        ["refund_pending", "refund_failed"].includes(result.payment_status)
+          ? "warning"
+          : "success",
+      );
       setMessage(
         result.payment_status === "refunded"
           ? "Booking cancelled. Full test refund completed."
@@ -755,6 +832,7 @@ function Bookings() {
               ? "Booking cancelled. The refund failed; use Retry refund."
               : "Booking cancelled. Full refund is awaiting Stripe confirmation; your dates have been released.",
       );
+      setSelected(null);
       state.reload();
     } catch (e) {
       setError(e.message);
@@ -767,9 +845,42 @@ function Bookings() {
       <p className="eyebrow">ALL YOUR ADVENTURES, IN ONE PLACE</p>
       <h1>My bookings</h1>
       <PendingCheckouts />
+      {selected && (
+        <ConfirmDialog
+          title="Cancel this booking?"
+          confirmLabel={
+            selected.payment_status === "legacy"
+              ? "Confirm cancellation"
+              : "Cancel and request full refund"
+          }
+          busy={busy === selected.id}
+          onClose={() => {
+            setSelected(null);
+            setError("");
+          }}
+          onConfirm={() => cancel(selected.id)}
+        >
+          <p>
+            <strong>{selected.property_name}</strong>
+          </p>
+          <p>
+            {selected.check_in} to {selected.check_out} · {selected.guests}{" "}
+            guests
+          </p>
+          <p>
+            {selected.payment_status === "legacy"
+              ? "No payment was taken for this older booking."
+              : "Full test refund: " +
+                money(selected.total_cents) +
+                ". Refund confirmation may take longer if the provider is unavailable."}
+          </p>
+          <p>Cancelling releases your dates. This cannot be undone.</p>
+          <ErrorBox error={error} />
+        </ConfirmDialog>
+      )}
       <ErrorBox error={error} />
       {message && (
-        <p className="notice success" role="status">
+        <p className={"notice " + messageTone} role="status">
           {message}
         </p>
       )}
@@ -796,7 +907,8 @@ function Bookings() {
                     Payment:{" "}
                     {b.payment_status === "legacy"
                       ? "No payment (older booking)"
-                      : b.payment_status?.replaceAll("_", " ")}
+                      : paymentLabels[b.payment_status] ||
+                        "Payment status unavailable"}
                   </p>
                   {b.status === "cancelled" &&
                     ["refund_pending", "refund_failed"].includes(
@@ -816,7 +928,10 @@ function Bookings() {
                     <button
                       className="outline"
                       disabled={busy === b.id}
-                      onClick={() => cancel(b.id)}
+                      onClick={() => {
+                        setError("");
+                        setSelected(b);
+                      }}
                     >
                       {busy === b.id
                         ? "Cancelling…"

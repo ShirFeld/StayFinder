@@ -12,14 +12,30 @@ export const amenities = [
   "Pet friendly",
 ];
 export async function api(url, options = {}) {
-  const r = await fetch("/api" + url, {
-    credentials: "include",
-    ...options,
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
+  let r;
+  try {
+    r = await fetch("/api" + url, {
+      credentials: "include",
+      ...options,
+      headers: { "Content-Type": "application/json", ...options.headers },
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw new Error(
+      "Could not reach StayFinder. Check your connection and try again.",
+    );
+  }
   const data = r.status === 204 ? null : await r.json();
-  if (!r.ok)
-    throw new Error(data.error?.message || "Request failed. Please try again.");
+  if (!r.ok) {
+    const error = new Error(
+      data.error?.message || "Request failed. Please try again.",
+    );
+    error.code = data.error?.code;
+    error.status = r.status;
+    if (r.status === 401 && url !== "/auth/login")
+      window.dispatchEvent(new Event("stayfinder:session-expired"));
+    throw error;
+  }
   return data;
 }
 export const send = (url, body, method = "POST") =>
@@ -68,14 +84,20 @@ export function useLoad(url) {
     [version, refresh] = useState(0);
   useEffect(() => {
     let alive = true;
+    if (!url) {
+      set({ loading: false, data: null, error: "" });
+      return;
+    }
+    const controller = new AbortController();
     set({ loading: true, data: null, error: "" });
-    api(url)
+    api(url, { signal: controller.signal })
       .then((data) => alive && set({ loading: false, data, error: "" }))
       .catch(
         (e) => alive && set({ loading: false, data: null, error: e.message }),
       );
     return () => {
       alive = false;
+      controller.abort();
     };
   }, [url, version]);
   return { ...state, reload: () => refresh((v) => v + 1) };

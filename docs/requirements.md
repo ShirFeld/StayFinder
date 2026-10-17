@@ -33,3 +33,7 @@ English responsive layout; semantic navigation, headings, forms, labels, table h
 ## Payment checkout update
 
 New bookings require hosted Stripe sandbox payment. An availability quote does not hold dates; starting checkout creates a temporary hold and snapshots server prices. Confirmed bookings and unexpired checkout holds both block overlapping intervals. The server creates the booking only after verifying a paid Stripe session. Direct POST /api/bookings returns 409 PAYMENT_REQUIRED. First cancellation before check-in requests a full refund, with separate pending/failed/refunded states. Existing bookings are preserved as legacy unpaid records. See [payments.md](payments.md) for the full current behavior, retry/expiry rules, test cards and provider setup.
+
+## Stabilization contract
+
+See [stabilization.md](stabilization.md) for current acceptance behavior: confirmation before the first cancellation, preserved catalog search/page, refresh and browser-close checkout recovery, expired-session sign-in return, server-based hold countdown, uncertain payment verification, failed refund recovery, keyboard focus and feedback. Use [qa-environment.md](qa-environment.md) for isolated data and deterministic provider checks before introducing Playwright.

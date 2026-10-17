@@ -1,6 +1,18 @@
 ﻿# StayFinder — Conversation checkpoint
 
-## Latest checkpoint — October 17, 2026 (takes precedence over historical notes)
+## Latest status — Stabilization completed on October 17, 2026
+
+The user approved all proposed pre-automation stabilization work and reported completing Stripe sandbox claim. The existing key and actual sandbox payment/refund flow were verified afterward. Do not keep telling the user that claim is still required or that the site itself expires October 24; that was the original temporary sandbox deadline. Account lifecycle is now handled in the user's Stripe Dashboard.
+
+Completed: accessible native confirmation before first booking cancellation (Keep booking default, Escape and focus return), retained catalog destination/dates/guests/filters/sort/page, detail URL persistence, tab-local opaque idempotency tokens, owned-checkout resume, honest pending/failed/completed refund messages, server-based countdown, distinction between hold expiry and verified payment outcome, serialized status checks, browser-close/refresh recovery and expired-session sign-in return. Backend reconciliation now retries saved checkout cancellation after outage. Failed late-payment refunds without a booking have an owner-only retry endpoint. Local origin aliases and Stripe callbacks preserve the actual browser host/session.
+
+Added guarded QA commands: npm run qa:db:reset (explicit destructive reset of QA data only), npm run qa:dev (UI 5174/API 3002), qa:status and separate migrate/seed commands. QA DB is server/data/qa/stayfinder.sqlite, cookie stayfinder.qa.sid, normal Stripe keys are never inherited. QA keys can be provided explicitly in ignored server/qa.env using server/qa.env.example. Payments are disabled by default in manual QA; deterministic Node payment tests use injected StripeDouble. No full Playwright project has been added.
+
+All 29 Node integration test groups and the client build passed. Controlled Chrome checks passed actual browser close/reopen, refresh/back/search preservation, dialog/keyboard/focus, refund outage/retry and expired-session recovery. Real Stripe sandbox declined-card/payment/refund UI check also passed with the new dialog. QA startup/proxy/seed/cookie checks passed. English docs/stabilization.md defines the behavior contract; docs/qa-environment.md explains isolated setup. Updated architecture, requirements, payments, README and verification report. Normal database data was preserved through additive migration 004. Owned QA verification servers are stopped at handoff; any pre-existing normal development servers are left alone.
+
+The user's original intent remains to build a JavaScript/Playwright automation framework gradually for learning and interview explanations, after this stabilization phase. Explanations to the user should be in Hebrew, with new terms explained; architecture/documentation files should be in English.
+
+## Previous checkpoint — October 17, 2026 (takes precedence over historical notes)
 
 The user requested and approved a payment extension: redirect to hosted Stripe Checkout, temporary date holds, and full refunds on eligible booking cancellation. The earlier no-code teaching phase is paused; implementation was explicitly authorized. Architecture documentation was requested in English and docs/architecture.md is English-only.
 

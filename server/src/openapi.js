@@ -1,3 +1,4 @@
+import { config } from "./config.js";
 const ref = (name) => ({ $ref: "#/components/schemas/" + name });
 const string = { type: "string" },
   integer = { type: "integer" };
@@ -408,7 +409,7 @@ export const openapi = {
   components: {
     schemas,
     securitySchemes: {
-      session: { type: "apiKey", in: "cookie", name: "stayfinder.sid" },
+      session: { type: "apiKey", in: "cookie", name: config.sessionName },
     },
   },
   paths,
@@ -648,3 +649,24 @@ paths["/api/bookings"].post = op("Direct booking disabled", ref("Error"), {
 });
 paths["/api/bookings/{id}/cancel"].post.description =
   "Owner only; before check-in day for the first cancellation. Paid bookings request a full sandbox refund. Cancellation and refund intent are durable before contacting Stripe; refund_pending/refund_failed are distinct from refunded. Repeated calls preserve cancellation time and do not duplicate refunds. Retry failed/pending refunds even after the original cutoff. Older legacy bookings cancel without a refund.";
+
+Object.assign(schemas.Checkout.properties, {
+  serverTime: {
+    type: "integer",
+    description: "Server Unix time in seconds, used for the hold countdown",
+  },
+  verificationPending: {
+    type: "boolean",
+    description:
+      "Hold expired locally; final provider status still needs verification",
+  },
+  refundStatus: { enum: ["none", "pending", "failed", "succeeded"] },
+});
+paths["/api/checkouts/{id}/refund"] = {
+  post: op("Retry an owned pending or failed refund", ref("Checkout"), {
+    auth: true,
+    parameters: [checkoutId],
+    description:
+      "Owner only. Retries an unfinished full refund, including a late-payment refund without a booking. Succeeded refunds are idempotent. Other checkout states return 409 REFUND_NOT_AVAILABLE. Does not cancel a confirmed booking.",
+  }),
+};

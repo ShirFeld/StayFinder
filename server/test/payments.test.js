@@ -22,12 +22,13 @@ const range = (propertyId = 1, offset = 20) => ({
 });
 async function request(
   path,
-  { cookie = jamie, body, method = "GET", key, raw, signature } = {},
+  { cookie = jamie, body, method = "GET", key, raw, signature, origin } = {},
 ) {
   const res = await fetch(base + path, {
     method,
     headers: {
       ...(cookie ? { Cookie: cookie } : {}),
+      ...(origin ? { Origin: origin } : {}),
       ...(body || raw ? { "Content-Type": "application/json" } : {}),
       ...(key ? { "Idempotency-Key": key } : {}),
       ...(signature ? { "stripe-signature": signature } : {}),
@@ -498,5 +499,128 @@ test("unconfigured checkout returns an actionable error instead of creating an u
   } finally {
     other.closeAllConnections();
     await new Promise((r) => other.close(r));
+  }
+});
+
+test("a saved checkout cancellation is completed by background reconciliation after an outage", async () => {
+  for (const c of db
+    .prepare(
+      "SELECT id,user_id FROM checkouts WHERE status IN ('creating','open')",
+    )
+    .all())
+    await request("/api/checkouts/" + c.id + "/cancel", {
+      method: "POST",
+      cookie: c.user_id === 2 ? jamie : taylor,
+    });
+  const c = (await start(range(1, 400))).data;
+  stripe.unavailable = true;
+  assert.equal(
+    (await request("/api/checkouts/" + c.id + "/cancel", { method: "POST" }))
+      .status,
+    503,
+  );
+  assert.equal(
+    db.prepare("SELECT cancel_requested FROM checkouts WHERE id=?").get(c.id)
+      .cancel_requested,
+    1,
+  );
+  stripe.unavailable = false;
+  await app.locals.payments.reconcile();
+  assert.equal(
+    (await request("/api/checkouts/" + c.id)).data.status,
+    "cancelled",
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/properties/1/availability?" + new URLSearchParams(range(1, 400)),
+      )
+    ).status,
+    200,
+  );
+});
+
+test("failed late-payment refunds without a booking are visible and can be retried exactly once", async () => {
+  const c = (await start(range(2, 400))).data;
+  db.prepare("UPDATE checkouts SET expires_at=unixepoch()-1 WHERE id=?").run(
+    c.id,
+  );
+  pay(c.id);
+  stripe.refundStatus = "failed";
+  const failed = await sync(c.id);
+  assert.equal(failed.data.booking, null);
+  assert.equal(failed.data.refundStatus, "failed");
+  assert.equal(failed.data.status, "refund_pending");
+  assert.equal(
+    (
+      await request("/api/checkouts/" + c.id + "/refund", {
+        cookie: taylor,
+        method: "POST",
+      })
+    ).status,
+    404,
+  );
+  stripe.refundStatus = "succeeded";
+  const retry = await request("/api/checkouts/" + c.id + "/refund", {
+    method: "POST",
+  });
+  assert.equal(retry.data.refundStatus, "succeeded");
+  assert.equal(retry.data.status, "refunded");
+  const count = stripe.refundCreates;
+  assert.equal(
+    (await request("/api/checkouts/" + c.id + "/refund", { method: "POST" }))
+      .data.status,
+    "refunded",
+  );
+  assert.equal(stripe.refundCreates, count);
+});
+
+test("an expired local hold explicitly distinguishes unverified payment from provider-confirmed expiry", async () => {
+  const c = (await start(range(3, 400))).data;
+  db.prepare("UPDATE checkouts SET expires_at=unixepoch()-1 WHERE id=?").run(
+    c.id,
+  );
+  const local = (await request("/api/checkouts/" + c.id)).data;
+  assert.equal(local.status, "expired");
+  assert.equal(local.verificationPending, true);
+  assert.ok(Math.abs(local.serverTime - Math.floor(Date.now() / 1000)) <= 1);
+  const sid = db
+    .prepare("SELECT stripe_session_id FROM checkouts WHERE id=?")
+    .get(c.id).stripe_session_id;
+  stripe.sessions.get(sid).status = "expired";
+  const verified = (await sync(c.id)).data;
+  assert.equal(verified.status, "expired");
+  assert.equal(verified.verificationPending, false);
+  assert.equal(verified.booking, null);
+});
+
+test("only configured loopback aliases are accepted and the trusted browser origin is saved for return", async () => {
+  for (const [propertyId, origin] of [
+    [6, "http://localhost:5173"],
+    [7, "http://127.0.0.1:5173"],
+  ]) {
+    const r = await request("/api/checkouts", {
+      method: "POST",
+      body: range(propertyId, 600),
+      key: randomUUID(),
+      origin,
+    });
+    assert.equal(r.status, 201);
+    assert.equal(
+      db
+        .prepare("SELECT return_origin FROM checkouts WHERE id=?")
+        .get(r.data.id).return_origin,
+      origin,
+    );
+  }
+  for (const origin of ["https://example.com", "http://localhost:9999"]) {
+    const r = await request("/api/checkouts", {
+      method: "POST",
+      body: range(8, 600),
+      key: randomUUID(),
+      origin,
+    });
+    assert.equal(r.status, 403);
+    assert.equal(r.data.error.code, "ORIGIN_REJECTED");
   }
 });
