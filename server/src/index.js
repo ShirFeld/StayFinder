@@ -1,6 +1,13 @@
 ﻿import { createApp } from "./app.js";
 import { config } from "./config.js";
-const server = createApp().listen(config.port, "127.0.0.1", () =>
+const app = createApp();
+const reconciliation = setInterval(
+  () => app.locals.payments.reconcile().catch(() => {}),
+  15000,
+);
+reconciliation.unref();
+app.locals.payments.reconcile().catch(() => {});
+const server = app.listen(config.port, "127.0.0.1", () =>
   console.log(
     "StayFinder API: http://localhost:" +
       config.port +
@@ -10,4 +17,7 @@ const server = createApp().listen(config.port, "127.0.0.1", () =>
   ),
 );
 for (const signal of ["SIGINT", "SIGTERM"])
-  process.on(signal, () => server.close(() => process.exit(0)));
+  process.on(signal, () => {
+    clearInterval(reconciliation);
+    server.close(() => process.exit(0));
+  });

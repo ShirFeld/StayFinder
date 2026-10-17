@@ -191,7 +191,7 @@ const op = (
         : { content: { "application/json": { schema } } }),
     },
     ...Object.fromEntries(
-      [400, 401, 403, 404, 409, 429, 503].map((s) => [
+      [400, 401, 403, 404, 409, 429, 502, 503].map((s) => [
         s,
         {
           description: {
@@ -201,7 +201,8 @@ const op = (
             404: "Resource not found",
             409: "Conflict with availability or business rules",
             429: "Rate limit",
-            503: "Weather provider unavailable",
+            502: "Provider verification failed",
+            503: "External provider unavailable or not configured",
           }[s],
           content: { "application/json": { schema: ref("Error") } },
         },
@@ -507,3 +508,143 @@ Object.assign(schemas.Error, {
     },
   },
 });
+
+// Hosted sandbox checkout is the only path to a new confirmed booking.
+Object.assign(schemas.Booking.properties, {
+  checkout_id: { type: "string", nullable: true },
+  payment_status: {
+    enum: ["legacy", "paid", "refund_pending", "refunded", "refund_failed"],
+  },
+  refund_id: { type: "string", nullable: true },
+});
+schemas.Checkout = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    propertyId: integer,
+    propertyName: string,
+    checkIn: { type: "string", format: "date" },
+    checkOut: { type: "string", format: "date" },
+    guests: integer,
+    nights: integer,
+    nightlyPriceCents: integer,
+    totalCents: integer,
+    currency: { enum: ["USD"] },
+    status: {
+      enum: [
+        "creating",
+        "open",
+        "completed",
+        "expired",
+        "cancelled",
+        "failed",
+        "refund_pending",
+        "refunded",
+      ],
+    },
+    expiresAt: { type: "integer", description: "Unix timestamp in seconds" },
+    checkoutUrl: { type: "string", nullable: true },
+    cancellationRequested: { type: "boolean" },
+    booking: { ...ref("Booking"), nullable: true },
+  },
+  example: {
+    id: "f8df6680-334a-4436-bbda-0833f604fb53",
+    propertyId: 1,
+    propertyName: "Lisbon Hideaway",
+    checkIn: "2030-06-10",
+    checkOut: "2030-06-13",
+    guests: 2,
+    nights: 3,
+    nightlyPriceCents: 11000,
+    totalCents: 33000,
+    currency: "USD",
+    status: "open",
+    expiresAt: 1907341200,
+    checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_example",
+    cancellationRequested: false,
+    booking: null,
+  },
+};
+const checkoutId = param("id", "string", "path", true);
+paths["/api/checkouts"] = {
+  get: op("My checkouts and temporary holds", list("Checkout"), {
+    auth: true,
+    description:
+      "Latest 50 owned checkouts, including payment/refund status. Expired holds do not block availability.",
+  }),
+  post: op("Hold dates and open Stripe sandbox Checkout", ref("Checkout"), {
+    auth: true,
+    status: 201,
+    body: ref("BookingInput"),
+    parameters: [
+      {
+        name: "Idempotency-Key",
+        in: "header",
+        required: true,
+        schema: {
+          type: "string",
+          minLength: 16,
+          maxLength: 100,
+          pattern: "^[A-Za-z0-9_-]+$",
+        },
+        example: "b99231af-2c77-4a3e-8d9e-73ddc8122b71",
+      },
+    ],
+    description:
+      "Atomically holds dates and snapshots server prices. No booking is created. Card-only Stripe sandbox; about 31-minute expiry. Same request key and input returns the same checkout; changed input returns 409 IDEMPOTENCY_CONFLICT. 409 on overlap or 5 active owned holds; 503 if not configured/provider unavailable. Retry the same key after an uncertain network error.",
+  }),
+};
+paths["/api/checkouts/{id}"] = {
+  get: op("Read my checkout", ref("Checkout"), {
+    auth: true,
+    parameters: [checkoutId],
+    description: "Owner only; other users receive 404. Read-only local state.",
+  }),
+};
+paths["/api/checkouts/{id}/sync"] = {
+  post: op("Verify payment or refund with Stripe", ref("Checkout"), {
+    auth: true,
+    parameters: [checkoutId],
+    description:
+      "Retrieves authoritative Stripe data; validates sandbox mode, session ID, metadata, amount and currency. Confirms exactly one booking only when paid. Late or cancelled payments are refunded. Never trusts browser URL parameters.",
+  }),
+};
+paths["/api/checkouts/{id}/cancel"] = {
+  post: op("Cancel checkout and release held dates", ref("Checkout"), {
+    auth: true,
+    parameters: [checkoutId],
+    description:
+      "Persists cancellation intent and expires Stripe session before releasing availability. A racing payment is refunded; a provider outage keeps the hold until safe release/expiry. Already confirmed bookings require the booking cancellation endpoint.",
+  }),
+};
+paths["/api/payments/webhook"] = {
+  post: op(
+    "Receive signed Stripe sandbox events",
+    { type: "object", properties: { received: { type: "boolean" } } },
+    {
+      parameters: [
+        {
+          name: "Stripe-Signature",
+          in: "header",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      body: {
+        type: "object",
+        description:
+          "Raw Stripe event payload; must preserve exact signed bytes.",
+      },
+      description:
+        "No user session required. Stripe signature and timestamp verified with the webhook secret. Live events rejected. Handles checkout completion/expiry and refund updates; safe to replay. Fetches payment state from Stripe instead of trusting payload payment amounts.",
+    },
+  ),
+};
+paths["/api/bookings"].post = op("Direct booking disabled", ref("Error"), {
+  auth: true,
+  status: 409,
+  description:
+    "Use POST /api/checkouts. This route always returns 409 PAYMENT_REQUIRED and never creates bookings.",
+});
+paths["/api/bookings/{id}/cancel"].post.description =
+  "Owner only; before check-in day for the first cancellation. Paid bookings request a full sandbox refund. Cancellation and refund intent are durable before contacting Stripe; refund_pending/refund_failed are distinct from refunded. Repeated calls preserve cancellation time and do not duplicate refunds. Retry failed/pending refunds even after the original cutoff. Older legacy bookings cancel without a refund.";

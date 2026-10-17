@@ -104,7 +104,7 @@ if (
       );
     db.transaction(() => {
       db.exec(
-        "DELETE FROM sessions; DELETE FROM bookings; DELETE FROM properties; DELETE FROM users;",
+        "DELETE FROM sessions; DELETE FROM bookings; DELETE FROM checkouts; DELETE FROM properties; DELETE FROM users;",
       );
     }).immediate();
     seed();

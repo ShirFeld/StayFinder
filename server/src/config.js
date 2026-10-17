@@ -6,6 +6,12 @@ export const serverRoot = path.resolve(
   "..",
 );
 export const config = {
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+  checkoutOrigin:
+    process.env.CHECKOUT_ORIGIN ||
+    process.env.APP_ORIGIN ||
+    "http://localhost:5173",
   port: Number(process.env.PORT || 3001),
   dbPath:
     process.env.DB_PATH === ":memory:"
@@ -40,3 +46,11 @@ export function today() {
   const get = (type) => parts.find((p) => p.type === type).value;
   return get("year") + "-" + get("month") + "-" + get("day");
 }
+
+if (
+  config.stripeSecretKey &&
+  !/^(sk|rk|rkcs)_test_/.test(config.stripeSecretKey)
+)
+  throw new Error(
+    "StayFinder accepts Stripe sandbox keys only. Live payments are disabled.",
+  );

@@ -8,10 +8,10 @@ StayFinder is a vacation accommodation booking demo for learning and practicing 
 
 The system has three main parts:
 
-| Part | Responsibility | Technology | Location |
-| --- | --- | --- | --- |
-| Frontend | Screens, forms, navigation, and displaying server responses | React + Vite, JavaScript | `client/` |
-| Backend | Request handling, authentication, authorization, and business rules | Node.js + Express, JavaScript | `server/` |
+| Part     | Responsibility                                                      | Technology                    | Location                                   |
+| -------- | ------------------------------------------------------------------- | ----------------------------- | ------------------------------------------ |
+| Frontend | Screens, forms, navigation, and displaying server responses         | React + Vite, JavaScript      | `client/`                                  |
+| Backend  | Request handling, authentication, authorization, and business rules | Node.js + Express, JavaScript | `server/`                                  |
 | Database | Persistent storage for users, accommodation, bookings, and sessions | SQLite through better-sqlite3 | `server/data/stayfinder.sqlite` by default |
 
 React is a library for building interfaces from components. Node.js runs JavaScript outside the browser. Express provides tools for handling HTTP requests. SQLite stores data in a file without requiring a separate database service.
@@ -26,10 +26,11 @@ flowchart LR
     AUTH --> LOGIC["Business rules"]
     LOGIC <-->|"SQL queries"| DB[("SQLite")]
     API <-->|"HTTP with timeout"| WEATHER["Open-Meteo"]
+    API <-->|"Sandbox API and signed webhooks"| STRIPE["Stripe Checkout"]
     API -->|"JSON: success or error"| UI
 ```
 
-HTTP is a protocol for exchanging requests and responses. JSON is a text format for transferring data, such as `{"guests":2}`. The API is the interface the server exposes to the frontend and testing tools. An endpoint combines an HTTP method and a URL, such as `POST /api/bookings`.
+HTTP is a protocol for exchanging requests and responses. JSON is a text format for transferring data, such as `{"guests":2}`. The API is the interface the server exposes to the frontend and testing tools. An endpoint combines an HTTP method and a URL, such as `POST /api/checkouts`.
 
 The browser does not open SQLite directly. It requests information from the server, which checks permissions and input, accesses the database, and returns a response.
 
@@ -56,6 +57,7 @@ stayfinder/
 │   ├── src/
 │   │   ├── index.js               Server entry point
 │   │   ├── app.js                 API routes, authorization, and business rules
+│   │   ├── payments.js            Checkout holds, verification, and refunds
 │   │   ├── config.js              Configuration and business date
 │   │   ├── database.js            Connection, migrations, seed, and reset
 │   │   ├── session-store.js       SQLite session storage
@@ -78,18 +80,19 @@ JSX is syntax for describing an HTML-like interface inside JavaScript. React com
 
 `client/src/main.jsx` contains the `App` component and the main screens. React Router selects a screen based on the browser URL:
 
-| Path | Screen |
-| --- | --- |
-| `/` | Home, search, and featured destinations |
-| `/stays` | Catalog, filtering, sorting, and pagination |
-| `/stays/:id` | Accommodation details, weather, and booking |
-| `/login` | Sign in |
-| `/bookings` | The current user's bookings and cancellation |
-| `/admin` | Accommodation, user, and booking management |
+| Path            | Screen                                                         |
+| --------------- | -------------------------------------------------------------- |
+| `/`             | Home, search, and featured destinations                        |
+| `/stays`        | Catalog, filtering, sorting, and pagination                    |
+| `/stays/:id`    | Accommodation details, weather, and booking                    |
+| `/login`        | Sign in                                                        |
+| `/bookings`     | The current user's bookings and cancellation                   |
+| `/admin`        | Accommodation, user, and booking management                    |
+| `/checkout/:id` | Payment verification, hold recovery, and checkout cancellation |
 
 `:id` is a placeholder for a record identifier, such as `/stays/1`.
 
-`client/src/admin.jsx` contains the administration components. Hiding a screen or button improves the user experience, while the server independently enforces the required permissions.
+`client/src/checkout.jsx` contains the payment return/recovery page and pending checkout list. `client/src/admin.jsx` contains the administration components. Hiding a screen or button improves the user experience, while the server independently enforces the required permissions.
 
 ### Shared Helpers and UI State
 
@@ -107,7 +110,7 @@ React keeps temporary screen state in browser memory, such as form values and se
 
 `server/src/index.js` calls `createApp()` from `app.js` and starts listening for requests. The local server binds to `127.0.0.1`. The port is configurable and defaults to `3001`.
 
-`app.js` contains API routes, validation helpers, authorization checks, and database operations. These responsibilities are currently kept in one file rather than separate controller, service, and repository layers.
+`app.js` contains API routes, validation helpers, authorization checks, and catalog/admin database operations. `payments.js` handles checkout, holds, payment verification, and refunds. The application does not introduce a separate controller/service/repository hierarchy.
 
 Requests pass through middleware: functions that run as part of the request-handling pipeline. The application configures:
 
@@ -137,18 +140,22 @@ API errors use a consistent structure:
 
 The business tables are defined in `server/migrations/001_initial.sql`. The migration tracking table is created by `database.js`.
 
-| Table | Main data |
-| --- | --- |
-| `users` | ID, name, unique email, password hash, role, and active status |
+| Table        | Main data                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| `users`      | ID, name, unique email, password hash, role, and active status                               |
 | `properties` | Name, destination, description, price in cents, capacity, amenities, images, and coordinates |
-| `bookings` | User and property IDs, dates, guests, nights, stored booking prices, and status |
-| `sessions` | Session ID, expiration, and serialized session data |
-| `migrations` | Applied migration filenames and application timestamps |
+| `bookings`   | User and property IDs, dates, guests, nights, stored booking prices, and status              |
+| `sessions`   | Session ID, expiration, and serialized session data                                          |
+| `checkouts`  | Temporary holds, price snapshots, Stripe references, expiry and refund recovery              |
+| `migrations` | Applied migration filenames and application timestamps                                       |
 
 ```mermaid
 erDiagram
     users ||--o{ bookings : "user_id"
     properties ||--o{ bookings : "property_id"
+    users ||--o{ checkouts : "user_id"
+    properties ||--o{ checkouts : "property_id"
+    checkouts o|--o| bookings : "checkout_id"
 ```
 
 One user can have many bookings. One accommodation unit can have many bookings on different dates. Each booking belongs to one user and one unit through foreign keys: fields that reference identifiers in other tables.
@@ -178,10 +185,10 @@ npm run dev
 
 The root command starts two processes together:
 
-| Process | Default address | Responsibility |
-| --- | --- | --- |
-| Vite | `http://localhost:5173` | Serve the frontend and update it during development |
-| Express | `http://localhost:3001` | Handle API requests and database access |
+| Process | Default address         | Responsibility                                      |
+| ------- | ----------------------- | --------------------------------------------------- |
+| Vite    | `http://localhost:5173` | Serve the frontend and update it during development |
+| Express | `http://localhost:3001` | Handle API requests and database access             |
 
 The frontend uses relative URLs such as `/api/properties`. The proxy in `client/vite.config.js` forwards requests beginning with `/api` to the backend on port `3001`. A proxy is an intermediary that forwards requests to another server.
 
@@ -209,31 +216,33 @@ SQLite is opened by the server process and does not require a separate startup c
 
 A session is server-side information that identifies a signed-in user across requests. The cookie holds its identifier, while the session contents are stored on the server. The default expiration period is one day.
 
-## 9. Booking Creation Flow
+## 9. Payment and Booking Creation Flow
 
-1. The `Detail` screen collects check-in, check-out, and guest count.
-2. `GET /api/properties/:id/availability` checks availability and returns a server-calculated quote. A quote does not reserve the dates.
-3. When the user confirms, the frontend sends `POST /api/bookings`. Authentication is required.
-4. Inside an immediate transaction, the server checks again that the property is active, the dates and guests are valid, and no booking overlaps. It calculates the price from database values.
-5. The server stores the booking with its nights, nightly price, and total at the time of booking. A database trigger provides an additional overlap check.
-6. The server returns `201` with the created booking, and the frontend displays a confirmation and booking ID. An overlap returns `409 BOOKING_CONFLICT`.
+1. The Detail screen requests an availability quote. This does not hold dates.
+2. Continue to payment calls POST /api/checkouts with an Idempotency-Key. An immediate SQLite transaction creates a hold and snapshots dates, guests, price and callback origin.
+3. The server creates a hosted, card-only Stripe sandbox Checkout session and redirects the browser. Holds last approximately 31 minutes and block overlapping reservations.
+4. The browser enters a test card on Stripe. No card number or CVC reaches StayFinder.
+5. A signed webhook or authenticated owner sync retrieves the authoritative Stripe session. The server verifies identity, metadata, currency, amount and sandbox mode.
+6. A paid, still-valid checkout creates exactly one confirmed booking in an immediate transaction. A unique checkout reference prevents duplicate fulfillment.
+7. Expired/cancelled/ineligible late payments receive a full test refund instead of a booking. A background reconciliation loop recovers unfinished payments/refunds on startup and every 15 seconds.
+8. Cancelling an eligible paid booking durably records cancellation and refund intent, releases availability, and requests the full refund. Provider failure leaves an explicit pending/failed status for safe recovery.
 
-A transaction groups database operations into a single unit: if an operation fails, its changes are rolled back. An immediate transaction obtains a write lock before checking availability, keeping the availability check and insertion within one protected operation.
+Direct POST /api/bookings is disabled. Existing bookings remain as legacy unpaid records. See [payments.md](payments.md) for the endpoint contract, hold and refund state machines, test setup and limitations.
 
 ## 10. Business Rules and Their Locations
 
-| Rule | Main enforcement location |
-| --- | --- |
-| Check-in cannot be in the past; check-out must follow check-in; maximum stay is 365 nights | `dates()` in `server/src/app.js` |
-| Guests must be positive integers within the unit's capacity | `integer()` and `quote()` in `app.js` |
-| Price equals nights multiplied by nightly price, in USD cents, without fees | `quote()` and booking creation in `app.js` |
-| Booking prices remain unchanged after listing price changes | `nightly_price_cents` and `total_cents` in `bookings` |
-| Confirmed bookings cannot overlap, including competing requests | Immediate transaction in `app.js` and triggers in `001_initial.sql` |
-| Check-out day is not an occupied night | Overlap conditions in `available()` and SQL |
-| Cancellation is allowed only before check-in day; repeated cancellation is idempotent | Cancellation route in `app.js` |
-| Users can view and cancel only their own bookings | `user_id` conditions in `app.js` queries |
-| Deactivation blocks new bookings and preserves existing bookings | `property()` and Admin routes in `app.js` |
-| Email must be unique | UNIQUE constraint on `users` |
+| Rule                                                                                       | Main enforcement location                                                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| Check-in cannot be in the past; check-out must follow check-in; maximum stay is 365 nights | `dates()` in `server/src/app.js`                                                                       |
+| Guests must be positive integers within the unit's capacity                                | `integer()` and `quote()` in `app.js`                                                                  |
+| Price equals nights multiplied by nightly price, in USD cents, without fees                | `quote()` in `app.js`; snapshot and verification in `payments.js`                                      |
+| Booking prices remain unchanged after listing price changes                                | `nightly_price_cents` and `total_cents` in `bookings`                                                  |
+| Confirmed bookings and active checkout holds cannot overlap                                | Immediate transactions in `payments.js`; triggers in `001_initial.sql` and `002_checkout_payments.sql` |
+| Check-out day is not an occupied night                                                     | Overlap conditions in `available()` and SQL                                                            |
+| Initial cancellation is allowed only before check-in day; repeats do not duplicate refunds | `cancelBooking()` and `refund()` in `payments.js`                                                      |
+| Users can view and cancel only their own bookings                                          | `user_id` conditions in `app.js` queries                                                               |
+| Deactivation blocks new bookings and preserves existing bookings                           | `property()` and Admin routes in `app.js`                                                              |
+| Email must be unique                                                                       | UNIQUE constraint on `users`                                                                           |
 
 Idempotent cancellation means repeating a successful cancellation does not apply another change or update its original cancellation timestamp.
 
@@ -264,16 +273,17 @@ Configuration is loaded by `config.js`. An example is provided in `server/.env.e
 
 ## 13. API Documentation and Tests
 
-| Resource | Location |
-| --- | --- |
-| OpenAPI contract: endpoints, schemas, permissions, and examples | `server/src/openapi.js` |
-| Swagger UI | `http://localhost:3001/api/docs` |
-| JSON contract | `http://localhost:3001/api/openapi.json` |
-| Integration tests | `server/test/api.test.js` |
-| Requirements and expected behavior | [requirements.md](requirements.md) |
-| Verification results and coverage limits | [verification.md](verification.md) |
-| SQL practice queries | [sql-practice.sql](sql-practice.sql) |
-| Setup, demo accounts, and limitations | [README](../README.md) |
+| Resource                                                        | Location                                                     |
+| --------------------------------------------------------------- | ------------------------------------------------------------ |
+| OpenAPI contract: endpoints, schemas, permissions, and examples | `server/src/openapi.js`                                      |
+| Swagger UI                                                      | `http://localhost:3001/api/docs`                             |
+| JSON contract                                                   | `http://localhost:3001/api/openapi.json`                     |
+| Integration tests                                               | `server/test/api.test.js` and `server/test/payments.test.js` |
+| Stripe sandbox setup and behavior                               | [payments.md](payments.md)                                   |
+| Requirements and expected behavior                              | [requirements.md](requirements.md)                           |
+| Verification results and coverage limits                        | [verification.md](verification.md)                           |
+| SQL practice queries                                            | [sql-practice.sql](sql-practice.sql)                         |
+| Setup, demo accounts, and limitations                           | [README](../README.md)                                       |
 
 OpenAPI is a structured description of the API contract. Swagger UI renders it as an interface for reading the documentation and sending requests.
 
@@ -281,6 +291,6 @@ OpenAPI is a structured description of the API contract. Swagger UI renders it a
 
 ## 14. Current Implementation Boundaries
 
-The project is intended for learning and local execution. It does not include real payments, email delivery, public registration, password recovery, or a full Playwright framework. Admin tables are not paginated. Weather responses have no local cache. Expired sessions are rejected, but there is no background process to remove their records.
+The project is intended for learning and local execution. It does not include live payments, email delivery, public registration, password recovery, or a full Playwright framework. Admin tables are not paginated. Weather responses have no local cache. Expired sessions are rejected, but there is no background process to remove their records.
 
 Server code is intentionally concentrated in a small number of files rather than separate services. Sample photographs are bundled locally; admin-added images and fonts may load from external sources. The local verification checks do not replace complete load, security, and accessibility testing before public deployment.

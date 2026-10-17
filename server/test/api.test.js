@@ -1,6 +1,9 @@
 ﻿import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
+import { StripeDouble } from "./stripe-double.js";
+import { randomUUID } from "node:crypto";
+const stripe = new StripeDouble();
 process.env.DB_PATH = ":memory:";
 process.env.WEATHER_TIMEOUT_MS = "80";
 const { createApp } = await import("../src/app.js");
@@ -21,11 +24,40 @@ const range = {
   checkOut: date(13),
   guests: 2,
 };
-async function request(url, { cookie, body, method = "GET" } = {}) {
+async function request(
+  url,
+  { cookie, body, method = "GET", direct = false } = {},
+) {
+  // Existing business-rule cases now travel through checkout and verified payment.
+  if (url === "/api/bookings" && method === "POST" && !direct) {
+    const checkout = await request("/api/checkouts", {
+      cookie,
+      body,
+      method: "POST",
+    });
+    if (checkout.status !== 201) return checkout;
+    const row = db
+      .prepare("SELECT stripe_session_id FROM checkouts WHERE id=?")
+      .get(checkout.data.id);
+    stripe.pay(row.stripe_session_id);
+    const verified = await request(
+      "/api/checkouts/" + checkout.data.id + "/sync",
+      { cookie, method: "POST" },
+    );
+    return {
+      ...verified,
+      status:
+        verified.status === 200 && verified.data.booking
+          ? 201
+          : verified.status,
+      data: verified.data.booking || verified.data,
+    };
+  }
   const response = await fetch(base + url, {
     method,
     headers: {
       ...(cookie ? { Cookie: cookie } : {}),
+      ...(url === "/api/checkouts" ? { "Idempotency-Key": randomUUID() } : {}),
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -47,7 +79,7 @@ async function login(email) {
 }
 let admin, jamie, taylor;
 before(async () => {
-  const app = createApp();
+  const app = createApp({ stripe });
   seed();
   server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));

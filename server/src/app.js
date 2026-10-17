@@ -10,6 +10,7 @@ import { db, migrate } from "./database.js";
 import { config, today, serverRoot } from "./config.js";
 import { SQLiteSessionStore } from "./session-store.js";
 import { openapi } from "./openapi.js";
+import { createPayments } from "./payments.js";
 
 export class ApiError extends Error {
   constructor(status, code, message) {
@@ -98,11 +99,18 @@ function property(id, includeInactive = false) {
   return row;
 }
 function available(id, checkIn, checkOut) {
-  return !db
-    .prepare(
-      "SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?",
-    )
-    .get(id, checkOut, checkIn);
+  return (
+    !db
+      .prepare(
+        "SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?",
+      )
+      .get(id, checkOut, checkIn) &&
+    !db
+      .prepare(
+        "SELECT id FROM checkouts WHERE property_id=? AND status IN ('creating','open') AND expires_at>unixepoch() AND check_in<? AND check_out>?",
+      )
+      .get(id, checkOut, checkIn)
+  );
 }
 function quote(input) {
   const p = property(input.propertyId);
@@ -180,11 +188,26 @@ function propertyInput(body) {
 const bookingSelect =
   "SELECT b.*,p.name property_name,p.destination,p.images,u.name customer_name,u.email customer_email FROM bookings b JOIN properties p ON p.id=b.property_id JOIN users u ON u.id=b.user_id";
 const bookingOut = (b) => ({ ...b, images: JSON.parse(b.images) });
-export function createApp() {
+export function createApp({ stripe } = {}) {
   migrate();
   const app = express();
   app.disable("x-powered-by");
   app.use(helmet({ contentSecurityPolicy: false }));
+  const payments = createPayments({
+    stripe,
+    quote,
+    integer,
+    fail,
+    bookingSelect,
+    bookingOut,
+  });
+  app.locals.payments = payments;
+  // Signature verification requires the exact bytes, before JSON parsing and sessions.
+  app.post(
+    "/api/payments/webhook",
+    express.raw({ type: "application/json", limit: "100kb" }),
+    asyncRoute(payments.webhook),
+  );
   app.use(express.json({ limit: "100kb" }));
   app.use("/api", (req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -262,14 +285,12 @@ export function createApp() {
       standardHeaders: "draft-7",
       legacyHeaders: false,
       handler: (req, res) =>
-        res
-          .status(429)
-          .json({
-            error: {
-              code: "RATE_LIMITED",
-              message: "Too many login attempts. Try again later.",
-            },
-          }),
+        res.status(429).json({
+          error: {
+            code: "RATE_LIMITED",
+            message: "Too many login attempts. Try again later.",
+          },
+        }),
     }),
     asyncRoute(async (req, res) => {
       const email = text(req.body.email, "Email").toLowerCase(),
@@ -359,6 +380,10 @@ export function createApp() {
           "NOT EXISTS(SELECT 1 FROM bookings b WHERE b.property_id=p.id AND b.status='confirmed' AND b.check_in<? AND b.check_out>?)",
         );
         args.push(range.checkOut, range.checkIn);
+        clauses.push(
+          "NOT EXISTS(SELECT 1 FROM checkouts c WHERE c.property_id=p.id AND c.status IN ('creating','open') AND c.expires_at>unixepoch() AND c.check_in<? AND c.check_out>?)",
+        );
+        args.push(range.checkOut, range.checkIn);
       }
       const sort = q.sort || "recommended",
         sorts = {
@@ -413,62 +438,53 @@ export function createApp() {
         .map(bookingOut),
     }),
   );
-  app.post("/api/bookings", auth, (req, res, next) => {
-    try {
-      const booking = db
-        .transaction(() => {
-          const q = quote(req.body);
-          const result = db
-            .prepare(
-              "INSERT INTO bookings(user_id,property_id,check_in,check_out,guests,nights,nightly_price_cents,total_cents) VALUES(?,?,?,?,?,?,?,?)",
-            )
-            .run(
-              req.user.id,
-              q.propertyId,
-              q.checkIn,
-              q.checkOut,
-              q.guests,
-              q.nights,
-              q.nightlyPriceCents,
-              q.totalCents,
-            );
-          return db
-            .prepare(bookingSelect + " WHERE b.id=?")
-            .get(result.lastInsertRowid);
-        })
-        .immediate();
-      res.status(201).json(bookingOut(booking));
-    } catch (e) {
-      next(e);
-    }
-  });
-  app.post("/api/bookings/:id/cancel", auth, (req, res, next) => {
-    try {
-      const b = db
-        .transaction(() => {
-          const row = db
-            .prepare("SELECT * FROM bookings WHERE id=? AND user_id=?")
-            .get(integer(req.params.id, "Booking ID"), req.user.id);
-          if (!row) fail(404, "NOT_FOUND", "Booking not found.");
-          if (row.status === "cancelled")
-            return db.prepare(bookingSelect + " WHERE b.id=?").get(row.id);
-          if (row.check_in <= today())
-            fail(
-              409,
-              "CANCELLATION_CLOSED",
-              "Bookings can only be cancelled before the check-in day.",
-            );
-          db.prepare(
-            "UPDATE bookings SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP WHERE id=?",
-          ).run(row.id);
-          return db.prepare(bookingSelect + " WHERE b.id=?").get(row.id);
-        })
-        .immediate();
-      res.json(bookingOut(b));
-    } catch (e) {
-      next(e);
-    }
-  });
+  // Direct booking is intentionally disabled: payment cannot be bypassed.
+  app.post("/api/bookings", auth, (req, res) =>
+    fail(
+      409,
+      "PAYMENT_REQUIRED",
+      "Continue to checkout to pay before confirming your booking.",
+    ),
+  );
+  app.post(
+    "/api/checkouts",
+    auth,
+    asyncRoute(async (req, res) =>
+      res
+        .status(201)
+        .json(
+          await payments.start(req.user, req.body, req.get("Idempotency-Key")),
+        ),
+    ),
+  );
+  app.get("/api/checkouts", auth, (req, res) =>
+    res.json({ items: payments.list(req.user.id) }),
+  );
+  app.get("/api/checkouts/:id", auth, (req, res) =>
+    res.json(payments.out(payments.owner(req.params.id, req.user.id))),
+  );
+  app.post(
+    "/api/checkouts/:id/sync",
+    auth,
+    asyncRoute(async (req, res) => {
+      payments.owner(req.params.id, req.user.id);
+      res.json(await payments.synchronize(req.params.id));
+    }),
+  );
+  app.post(
+    "/api/checkouts/:id/cancel",
+    auth,
+    asyncRoute(async (req, res) =>
+      res.json(await payments.cancelCheckout(req.params.id, req.user.id)),
+    ),
+  );
+  app.post(
+    "/api/bookings/:id/cancel",
+    auth,
+    asyncRoute(async (req, res) =>
+      res.json(await payments.cancelBooking(req.params.id, req.user.id)),
+    ),
+  );
   app.get("/api/admin/properties", admin, (req, res) =>
     res.json({
       items: db

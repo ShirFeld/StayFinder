@@ -1,5 +1,17 @@
 ﻿# StayFinder — Conversation checkpoint
 
+## Latest checkpoint — October 17, 2026 (takes precedence over historical notes)
+
+The user requested and approved a payment extension: redirect to hosted Stripe Checkout, temporary date holds, and full refunds on eligible booking cancellation. The earlier no-code teaching phase is paused; implementation was explicitly authorized. Architecture documentation was requested in English and docs/architecture.md is English-only.
+
+Implemented real Stripe sandbox integration in server/src/payments.js and client/src/checkout.jsx. New confirmed bookings require server-verified paid sessions; direct POST /api/bookings is disabled. Checkouts reserve dates for about 31 minutes. Additive migrations 002 and 003 preserve old bookings as legacy unpaid records. Signed raw-body webhooks, owner sync, startup/15-second reconciliation, payment/refund idempotency, late-payment compensation refunds, and durable refund recovery are implemented. User/availability/capacity rechecks prevent invalid finalization.
+
+All 22 HTTP/SQLite test groups pass. Actual isolated Chrome UI testing against the real Stripe sandbox passed hosted redirect, declined card without a booking, successful card payment, paid booking confirmation, and full refund through cancellation. Webhook completion/refund delivery returned 200. Build passed. Details are in docs/payments.md and docs/verification.md.
+
+User confirmed the sandbox email directly in chat. A temporary sandbox was provisioned and expires October 24, 2026 unless claimed. Credentials are only in ignored server/.env and server/data; do not print them. The private claim link is in ignored server/data/stripe-sandbox-access.md. The user should run npm run payments:listen in one terminal and npm run dev in another. For built UI on port 3001 set CHECKOUT_ORIGIN accordingly before creating new checkouts. Test card: 4242 4242 4242 4242; future expiry and any three-digit CVC. Sandbox only; live keys are rejected.
+
+## Historical conversation context
+
 Updated: 2026-10-13 (Asia/Jerusalem).
 
 ## User and project context

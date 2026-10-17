@@ -29,3 +29,7 @@ Weather is independent from booking availability. Upstream success is normalized
 ## UI states and accessibility
 
 English responsive layout; semantic navigation, headings, forms, labels, table headers and buttons. Focus indicators are visible. Async pages show loading, actionable errors/retry or empty guidance. Submission buttons disable while pending. Booking confirmation shows its ID and authoritative price. My Bookings displays confirmed/cancelled status and original pricing. Photo errors show a local SVG. Stock images and fictional data are documented; no fabricated customer reviews. Use semantic Playwright locators when the future automation project is added.
+
+## Payment checkout update
+
+New bookings require hosted Stripe sandbox payment. An availability quote does not hold dates; starting checkout creates a temporary hold and snapshots server prices. Confirmed bookings and unexpired checkout holds both block overlapping intervals. The server creates the booking only after verifying a paid Stripe session. Direct POST /api/bookings returns 409 PAYMENT_REQUIRED. First cancellation before check-in requests a full refund, with separate pending/failed/refunded states. Existing bookings are preserved as legacy unpaid records. See [payments.md](payments.md) for the full current behavior, retry/expiry rules, test cards and provider setup.
