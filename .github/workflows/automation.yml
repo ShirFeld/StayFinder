@@ -17,6 +17,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
         env:
           PLAYWRIGHT_SKIP_BROWSER_GC: "1"
+      - run: npm run build
       - run: npm test
       - run: npm run test:automation
         env:

@@ -60,7 +60,7 @@ To manually exercise real Stripe from QA later, use a dedicated Stripe sandbox a
 npm test
 ```
 
-These Node integration tests use in-memory SQLite, actual listening HTTP servers, and an injected provider double in `server/test/stripe-double.js`. It controls payment success, unpaid sessions, expiry, network errors, refunds, and idempotency. Real Stripe signature validation is used in webhook tests. Weather success/error/timeout cases use a local HTTP stub. These checks do not require Stripe availability or alter the normal or QA file databases.
+These Node integration tests use in-memory SQLite, actual listening HTTP servers, and an injected provider double in `server/test/stripe-double.ts`. It controls payment success, unpaid sessions, expiry, network errors, refunds, and idempotency. Real Stripe signature validation is used in webhook tests. Weather success/error/timeout cases use a local HTTP stub. These checks do not require Stripe availability or alter the normal or QA file databases.
 
 The provider double is test-only; the application has no environment setting that marks an arbitrary checkout as paid. The Playwright harness in `automation/` intercepts the external hosted browser page and injects the provider double at the existing app factory boundary. A small separate set of real-sandbox checks can then verify the actual Stripe integration.
 

@@ -26,8 +26,8 @@
 
 ## Suggested interview demonstration
 
-1. Show `playwright.config.js`: separate projects, two workers, failure artifacts and explicit retry policy.
-2. Explain `fixtures/test.js`: private per-worker DB, clean per-test seeds, separate authenticated users and deterministic providers. Then show `fixtures/ui.fixture.js`, which injects test-scoped Page Objects into UI tests.
+1. Show `playwright.config.ts`: separate projects, two workers, failure artifacts and explicit retry policy.
+2. Explain `fixtures/test.ts`: private per-worker DB, clean per-test seeds, separate authenticated users and deterministic providers. Then show `fixtures/ui.fixture.ts`, which injects test-scoped Page Objects into UI tests.
 3. Run `npm run test:sanity` and open the HTML report.
 4. Open PAY-04 to explain why two concurrent callers must receive one success and one conflict.
 5. Open PAY-02 and DB-02 to show how an HTTP result is checked against the stored price snapshot and exactly-one booking relationship.

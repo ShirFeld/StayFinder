@@ -1,0 +1,464 @@
+type JsonResponse = any; // Raw HTTP response under test; validated by scenario assertions.
+interface RequestOptions {
+  cookie?: string | null;
+  body?: unknown;
+  method?: string;
+  direct?: boolean;
+  key?: string;
+  raw?: string;
+  signature?: string;
+  origin?: string;
+}
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import type { Server } from "node:http";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
+import { after, before, test } from "node:test";
+import type { BookingRow, CheckoutRow } from "../src/types.ts";
+import { StripeDouble } from "./stripe-double.ts";
+const stripe = new StripeDouble();
+process.env.DB_PATH = ":memory:";
+process.env.WEATHER_TIMEOUT_MS = "80";
+const { createApp } = await import("../src/app.ts");
+const { db, seed } = await import("../src/database.ts");
+const { config, today } = await import("../src/config.ts");
+let server: Server,
+  base: string,
+  mock: Server,
+  mode = "ok";
+const date = (offset: number) => {
+  const d = new Date(today() + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+const range = {
+  propertyId: 1,
+  checkIn: date(10),
+  checkOut: date(13),
+  guests: 2,
+};
+async function request(
+  url: string,
+  { cookie, body, method = "GET", direct = false }: RequestOptions = {},
+): Promise<{
+  status: number;
+  data: JsonResponse;
+  cookie?: string;
+  headers: Headers;
+}> {
+  // Existing business-rule cases now travel through checkout and verified payment.
+  if (url === "/api/bookings" && method === "POST" && !direct) {
+    const checkout = await request("/api/checkouts", {
+      cookie,
+      body,
+      method: "POST",
+    });
+    if (checkout.status !== 201) return checkout;
+    const row = db
+      .prepare<
+        unknown[],
+        CheckoutRow
+      >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+      .get(checkout.data.id)!;
+    stripe.pay(row.stripe_session_id!);
+    const verified = await request(
+      "/api/checkouts/" + checkout.data.id + "/sync",
+      { cookie, method: "POST" },
+    );
+    return {
+      ...verified,
+      status:
+        verified.status === 200 && verified.data.booking
+          ? 201
+          : verified.status,
+      data: verified.data.booking || verified.data,
+    };
+  }
+  const response = await fetch(base + url, {
+    method,
+    headers: {
+      ...(cookie ? { Cookie: cookie } : {}),
+      ...(url === "/api/checkouts" ? { "Idempotency-Key": randomUUID() } : {}),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  return {
+    status: response.status,
+    data:
+      response.status === 204
+        ? null
+        : ((await response.json()) as JsonResponse),
+    cookie: response.headers.get("set-cookie")?.split(";")![0],
+    headers: response.headers,
+  };
+}
+async function login(email: string) {
+  const r = await request("/api/auth/login", {
+    method: "POST",
+    body: { email, password: "StayFinder123!" },
+  });
+  assert.equal(r.status, 200);
+  return r.cookie;
+}
+let admin: string | undefined,
+  jamie: string | undefined,
+  taylor: string | undefined;
+before(async () => {
+  const app = createApp({ stripe });
+  seed();
+  server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((r) => server.once("listening", r));
+  base = "http://127.0.0.1:" + (server.address() as AddressInfo).port;
+  mock = http.createServer((req, res) => {
+    if (mode === "slow") {
+      setTimeout(() => res.end("{}"), 250);
+      return;
+    }
+    res.setHeader("Content-Type", "application/json");
+    if (mode === "http") {
+      res.statusCode = 502;
+      res.end("{}");
+      return;
+    }
+    res.end(
+      JSON.stringify(
+        mode === "bad"
+          ? {}
+          : {
+              current: {
+                temperature_2m: 23,
+                weather_code: 0,
+                wind_speed_10m: 7,
+                time: "2030-01-01T12:00",
+              },
+            },
+      ),
+    );
+  });
+  mock.listen(0, "127.0.0.1");
+  await new Promise<void>((r) => mock.once("listening", r));
+  config.weatherUrl =
+    "http://127.0.0.1:" + (mock.address() as AddressInfo).port;
+  admin = await login("admin@stayfinder.demo");
+  jamie = await login("jamie@stayfinder.demo");
+  taylor = await login("taylor@stayfinder.demo");
+});
+after(async () => {
+  await Promise.all([
+    new Promise((r) => server.close(r)),
+    new Promise((r) => mock.close(r)),
+  ]);
+  db.close();
+});
+test("stage 1: seeded catalog, filters, sort, pagination, validation and session lifecycle", async () => {
+  const all = await request("/api/properties?pageSize=50");
+  assert.equal(all.data.total, 12);
+  assert.equal(
+    db.prepare<unknown[], { n: number }>("SELECT count(*) n FROM users").get()!
+      .n,
+    3,
+  );
+  const filtered = await request(
+    "/api/properties?destination=Lisbon&amenities=Pool&guests=4",
+  );
+  assert.equal(filtered.data.total, 1);
+  const sorted = await request("/api/properties?sort=price_desc&pageSize=2");
+  assert.equal(sorted.data.items.length, 2);
+  assert.ok(
+    sorted.data.items[0].price_cents >= sorted.data.items[1].price_cents,
+  );
+  assert.equal(
+    (await request("/api/properties?checkIn=not-a-date")).status,
+    400,
+  );
+  assert.equal((await request("/api/properties/999")).status, 404);
+  assert.equal((await request("/api/bookings")).status, 401);
+  assert.equal(
+    (await request("/api/admin/users", { cookie: jamie })).status,
+    403,
+  );
+  const session = await request("/api/auth/login", {
+    method: "POST",
+    body: { email: "jamie@stayfinder.demo", password: "StayFinder123!" },
+  });
+  assert.match(session.headers.get("set-cookie")!, /HttpOnly/);
+  assert.match(session.headers.get("set-cookie")!, /SameSite=Lax/);
+  assert.equal(
+    (await request("/api/auth/me", { cookie: session.cookie })).data.user.role,
+    "customer",
+  );
+  assert.equal(
+    (
+      await request("/api/auth/logout", {
+        cookie: session.cookie,
+        method: "POST",
+      })
+    ).status,
+    204,
+  );
+  assert.equal(
+    (await request("/api/auth/me", { cookie: session.cookie })).data.user,
+    null,
+  );
+  assert.equal(
+    (
+      await request("/api/auth/login", {
+        method: "POST",
+        body: { email: "jamie@stayfinder.demo", password: "incorrect" },
+      })
+    ).data.error.code,
+    "INVALID_CREDENTIALS",
+  );
+});
+test("stage 2: server price, competing requests, exclusive checkout, ownership, cancellation and SQL snapshot", async () => {
+  const invalid = [
+    { ...range, checkIn: date(-1) },
+    { ...range, checkOut: range.checkIn },
+    { ...range, guests: 0 },
+    { ...range, guests: 3 },
+    { ...range, checkIn: "2030-02-30" },
+  ];
+  for (const body of invalid)
+    assert.equal(
+      (await request("/api/bookings", { cookie: jamie, method: "POST", body }))
+        .status,
+      400,
+    );
+  const race = await Promise.all(
+    [jamie, taylor].map((cookie) =>
+      request("/api/bookings", {
+        cookie,
+        method: "POST",
+        body: { ...range, totalCents: 1 },
+      }),
+    ),
+  );
+  assert.deepEqual(race.map((r) => r.status).sort(), [201, 409]);
+  const winner = race.find((r) => r.status === 201)!,
+    owner = race[0].status === 201 ? jamie : taylor,
+    other = owner === jamie ? taylor : jamie;
+  assert.equal(winner.data.total_cents, 33000);
+  assert.equal(
+    db
+      .prepare<
+        unknown[],
+        { n: number }
+      >("SELECT count(*) n FROM bookings WHERE property_id=1")
+      .get()!.n,
+    1,
+  );
+  assert.equal(
+    (
+      await request("/api/bookings/" + winner.data.id + "/cancel", {
+        cookie: other,
+        method: "POST",
+      })
+    ).status,
+    404,
+  );
+  const next = await request("/api/bookings", {
+    cookie: owner,
+    method: "POST",
+    body: { ...range, checkIn: range.checkOut, checkOut: date(14) },
+  });
+  assert.equal(next.status, 201);
+  db.prepare("UPDATE properties SET price_cents=99900 WHERE id=1").run();
+  assert.equal(
+    db
+      .prepare<
+        unknown[],
+        BookingRow
+      >("SELECT total_cents FROM bookings WHERE id=?")
+      .get(winner.data.id)!.total_cents,
+    33000,
+  );
+  const first = await request("/api/bookings/" + winner.data.id + "/cancel", {
+      cookie: owner,
+      method: "POST",
+    }),
+    second = await request("/api/bookings/" + winner.data.id + "/cancel", {
+      cookie: owner,
+      method: "POST",
+    });
+  assert.equal(first.status, 200);
+  assert.equal(first.data.cancelled_at, second.data.cancelled_at);
+  assert.equal(
+    (
+      await request(
+        "/api/properties/1/availability?" +
+          new URLSearchParams(
+            Object.entries(range).map(([k, v]): [string, string] => [
+              k,
+              String(v),
+            ]),
+          ),
+      )
+    ).status,
+    200,
+  );
+  const todayBooking = await request("/api/bookings", {
+    cookie: owner,
+    method: "POST",
+    body: { propertyId: 2, checkIn: today(), checkOut: date(1), guests: 2 },
+  });
+  assert.equal(todayBooking.status, 201);
+  assert.equal(
+    (
+      await request("/api/bookings/" + todayBooking.data.id + "/cancel", {
+        cookie: owner,
+        method: "POST",
+      })
+    ).data.error.code,
+    "CANCELLATION_CLOSED",
+  );
+  for (const row of (await request("/api/bookings", { cookie: owner })).data
+    .items)
+    assert.equal(row.user_id, winner.data.user_id);
+});
+test("stage 3: admin CRUD, deactivation, unique users and immediate session revocation", async () => {
+  const body = {
+    name: "QA Cottage",
+    destination: "Test City",
+    description: "A test accommodation.",
+    priceCents: 12300,
+    capacity: 4,
+    amenities: ["WiFi"],
+    images: ["https://example.com/test.jpg"],
+    latitude: 1,
+    longitude: 2,
+    active: true,
+  };
+  const created = await request("/api/admin/properties", {
+    cookie: admin,
+    method: "POST",
+    body,
+  });
+  assert.equal(created.status, 201);
+  const id = created.data.id;
+  assert.equal(
+    (
+      await request("/api/bookings", {
+        cookie: jamie,
+        method: "POST",
+        body: { ...range, propertyId: id },
+      })
+    ).status,
+    201,
+  );
+  assert.equal(
+    (
+      await request("/api/admin/properties/" + id, {
+        cookie: admin,
+        method: "PUT",
+        body: { ...body, active: false, priceCents: 44400 },
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await request("/api/properties/" + id)).status, 404);
+  assert.equal(
+    (
+      await request("/api/bookings", {
+        cookie: jamie,
+        method: "POST",
+        body: { ...range, propertyId: id },
+      })
+    ).status,
+    404,
+  );
+  assert.ok(
+    (await request("/api/admin/bookings", { cookie: admin })).data.items.some(
+      (b: import("../../shared/types.ts").Booking) =>
+        b.property_id === id && b.total_cents === 36900,
+    ),
+  );
+  const userBody = {
+    name: "QA User",
+    email: "qa@example.com",
+    password: "Password123!",
+    role: "customer",
+  };
+  assert.equal(
+    (
+      await request("/api/admin/users", {
+        cookie: admin,
+        method: "POST",
+        body: userBody,
+      })
+    ).status,
+    201,
+  );
+  assert.equal(
+    (
+      await request("/api/admin/users", {
+        cookie: admin,
+        method: "POST",
+        body: { ...userBody, email: "QA@example.com" },
+      })
+    ).data.error.code,
+    "EMAIL_EXISTS",
+  );
+  assert.equal(
+    (
+      await request("/api/admin/users/1", {
+        cookie: admin,
+        method: "PATCH",
+        body: { role: "customer", active: true },
+      })
+    ).data.error.code,
+    "SELF_LOCKOUT",
+  );
+  assert.equal(
+    (
+      await request("/api/admin/users/3", {
+        cookie: admin,
+        method: "PATCH",
+        body: { role: "customer", active: false },
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/api/bookings", { cookie: taylor })).status,
+    401,
+  );
+});
+test("stage 3: weather success, malformed upstream, HTTP error, timeout and booking independence", async () => {
+  mode = "ok";
+  assert.equal(
+    (await request("/api/weather?propertyId=1")).data.temperature,
+    23,
+  );
+  for (const failure of ["bad", "http", "slow"]) {
+    mode = failure;
+    const r = await request("/api/weather?propertyId=1");
+    assert.equal(r.status, 503);
+    assert.equal(r.data.error.code, "WEATHER_UNAVAILABLE");
+  }
+  assert.equal(
+    (
+      await request("/api/bookings", {
+        cookie: jamie,
+        method: "POST",
+        body: { ...range, propertyId: 4 },
+      })
+    ).status,
+    201,
+  );
+});
+test("stage 4: Swagger contract and SQL overlap enforcement", async () => {
+  const r = await request("/api/openapi.json");
+  assert.equal(r.data.openapi, "3.0.3");
+  assert.ok(r.data.paths["/api/admin/users/{id}"]);
+  assert.throws(
+    () =>
+      db
+        .prepare(
+          "INSERT INTO bookings(user_id,property_id,check_in,check_out,guests,nights,nightly_price_cents,total_cents) VALUES(2,4,?,?,2,3,100,300)",
+        )
+        .run(range.checkIn, range.checkOut),
+    /BOOKING_CONFLICT/,
+  );
+});

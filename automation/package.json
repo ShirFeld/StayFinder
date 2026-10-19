@@ -15,7 +15,8 @@
     "report": "playwright show-report reports/html",
     "browsers:install": "playwright install chromium",
     "test:sanity:ui": "playwright test --project=chromium --grep @sanity --headed --workers=1",
-    "test:sanity:debug": "playwright test --project=chromium --grep @sanity --debug"
+    "test:sanity:debug": "playwright test --project=chromium --grep @sanity --debug",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1"

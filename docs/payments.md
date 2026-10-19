@@ -60,11 +60,11 @@ The active hold protects availability while payment is attempted. If payment is 
 
 ## Payment Verification and Recovery
 
-Three paths use the same idempotent verification logic in `server/src/payments.js`:
+Three paths use the same idempotent verification logic in `server/src/payments.ts`:
 
 1. A signed Stripe webhook, independent of browser return.
 2. The authenticated owner's `POST /api/checkouts/:id/sync` request from the return/recovery page.
-3. A background reconciliation loop in `server/src/index.js`, running on startup and every 15 seconds while the API is running.
+3. A background reconciliation loop in `server/src/index.ts`, running on startup and every 15 seconds while the API is running.
 
 The webhook route uses the raw request body before Express JSON parsing. Stripe's SDK verifies the signature and timestamp. Live events are rejected. Browser query parameters such as `payment=returned` only affect presentation; they never establish payment success.
 
@@ -104,7 +104,7 @@ Migration `002_checkout_payments.sql` adds checkouts, hold-aware overlap trigger
 
 ## Verification and Limits
 
-`server/test/payments.test.js` exercises payment rules using a controlled SDK double. Stripe's real signature validation is used for signed webhook tests. The application has no fake-payment runtime switch or unpaid booking bypass. Existing business-rule tests now go through checkout and simulated provider confirmation rather than immediate booking.
+`server/test/payments.test.ts` exercises payment rules using a controlled SDK double. Stripe's real signature validation is used for signed webhook tests. The application has no fake-payment runtime switch or unpaid booking bypass. Existing business-rule tests now go through checkout and simulated provider confirmation rather than immediate booking.
 
 A separate temporary browser smoke test uses the actual Stripe sandbox, hosted card form, and full refund API against an isolated in-memory application database. See `verification.md` for actual results. A maintained Playwright workspace now exists in `automation/` with controlled provider scenarios; it does not automatically operate the real Stripe hosted form.
 

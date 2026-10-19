@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
-    "db:migrate": "node src/database.js migrate",
-    "db:seed": "node src/database.js seed",
-    "db:reset": "node src/database.js reset",
-    "test": "node --test --test-concurrency=1 test/*.test.js"
+    "dev": "node --import tsx --watch src/index.ts",
+    "start": "node --import tsx src/index.ts",
+    "db:migrate": "node --import tsx src/database.ts migrate",
+    "db:seed": "node --import tsx src/database.ts seed",
+    "db:reset": "node --import tsx src/database.ts reset",
+    "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -20,6 +21,7 @@
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
     "stripe": "^23.0.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.23.15"
   }
 }
