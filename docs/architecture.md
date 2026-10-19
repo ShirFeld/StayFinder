@@ -1,6 +1,6 @@
 ﻿# StayFinder Architecture
 
-Updated: October 17, 2026. This document describes the current local implementation.
+Updated: October 19, 2026. This document describes the current local implementation.
 
 ## 1. System Purpose
 
@@ -10,11 +10,11 @@ The system has three main parts:
 
 | Part     | Responsibility                                                      | Technology                    | Location                                   |
 | -------- | ------------------------------------------------------------------- | ----------------------------- | ------------------------------------------ |
-| Frontend | Screens, forms, navigation, and displaying server responses         | React + Vite, JavaScript      | `client/`                                  |
-| Backend  | Request handling, authentication, authorization, and business rules | Node.js + Express, JavaScript | `server/`                                  |
+| Frontend | Screens, forms, navigation, and displaying server responses         | React + Vite, TypeScript      | `client/`                                  |
+| Backend  | Request handling, authentication, authorization, and business rules | Node.js + Express, TypeScript | `server/`                                  |
 | Database | Persistent storage for users, accommodation, bookings, and sessions | SQLite through better-sqlite3 | `server/data/stayfinder.sqlite` by default |
 
-React is a library for building interfaces from components. Node.js runs JavaScript outside the browser. Express provides tools for handling HTTP requests. SQLite stores data in a file without requiring a separate database service.
+React is a library for building interfaces from components. The server runs TypeScript outside the browser through the `tsx` loader. Express provides tools for handling HTTP requests. SQLite stores data in a file without requiring a separate database service.
 
 ## 2. System Overview
 
@@ -40,15 +40,15 @@ The browser does not open SQLite directly. It requests information from the serv
 stayfinder/
 |-- client/
 |   |-- index.html                 Base HTML document used by React
-|   |-- vite.config.js             Development server and API proxy
+|   |-- vite.config.ts             Development server and API proxy
 |   |-- public/                    Local photos and fallback image
 |   |-- src/
-|       |-- main.jsx               App, routing, catalog, login and bookings
-|       |-- admin.jsx              Administration screens
-|       |-- checkout.jsx           Payment return, recovery and pending holds
-|       |-- checkout-request.js    Opaque checkout retry tokens
-|       |-- accessibility.jsx      Route focus and confirmation dialog
-|       |-- shared.jsx             API requests and shared UI helpers
+|       |-- main.tsx               App, routing, catalog, login and bookings
+|       |-- admin.tsx              Administration screens
+|       |-- checkout.tsx           Payment return, recovery and pending holds
+|       |-- checkout-request.ts    Opaque checkout retry tokens
+|       |-- accessibility.tsx      Route focus and confirmation dialog
+|       |-- shared.tsx             API requests and shared UI helpers
 |       |-- styles.css             Styling and responsive layouts
 |-- server/
 |   |-- .env.example               Normal environment configuration example
@@ -61,18 +61,18 @@ stayfinder/
 |   |-- migrations/                Ordered SQL schema changes: 001 through 004
 |   |-- scripts/                   QA launcher and Stripe CLI commands
 |   |-- src/
-|   |   |-- index.js               Server entry point and payment reconciliation
-|   |   |-- app.js                 API routes, authorization and validation
-|   |   |-- payments.js            Checkout holds, verification and refunds
-|   |   |-- config.js              Configuration and business date
-|   |   |-- database.js            Connection, migrations, seed and reset
-|   |   |-- session-store.js       SQLite session storage
-|   |   |-- openapi.js             API contract definition
+|   |   |-- index.ts               Server entry point and payment reconciliation
+|   |   |-- app.ts                 API routes, authorization and validation
+|   |   |-- payments.ts            Checkout holds, verification and refunds
+|   |   |-- config.ts              Configuration and business date
+|   |   |-- database.ts            Connection, migrations, seed and reset
+|   |   |-- session-store.ts       SQLite session storage
+|   |   |-- openapi.ts             API contract definition
 |   |-- test/
-|       |-- api.test.js            HTTP and SQLite integration tests
-|       |-- payments.test.js       Payment lifecycle and recovery tests
-|       |-- qa-config.test.js      QA environment isolation checks
-|       |-- stripe-double.js       Controlled Stripe substitute for server tests
+|       |-- api.test.ts            HTTP and SQLite integration tests
+|       |-- payments.test.ts       Payment lifecycle and recovery tests
+|       |-- qa-config.test.ts      QA environment isolation checks
+|       |-- stripe-double.ts       Controlled Stripe substitute for server tests
 |-- automation/                    Playwright API, DB and desktop/mobile UI suites
 |-- .github/workflows/             CI verification workflow
 |-- docs/
@@ -82,7 +82,7 @@ stayfinder/
 |-- README.md                      Setup, usage and limitations
 ```
 
-JSX is syntax for describing an HTML-like interface inside JavaScript. React component files in this project use the `.jsx` extension.
+JSX is syntax for describing an HTML-like interface inside TypeScript. React component files in this project use the `.tsx` extension.
 
 `client`, `server` and `automation` are npm workspaces: separate packages managed from a shared project root. `node_modules` contains installed dependencies rather than application source code. The `automation/` workspace contains Playwright fixtures, API and SQL suites, Page Objects, desktop/mobile UI journeys and generated reports. It starts the app with disposable worker databases and controlled providers; see [the automation guide](../automation/README.md). Generated build output (`client/dist/`) and installed dependencies (`node_modules/`) are excluded from Git.
 
@@ -90,7 +90,7 @@ JSX is syntax for describing an HTML-like interface inside JavaScript. React com
 
 ### Screens and Routing
 
-`client/src/main.jsx` contains the `App` component and the main screens. React Router selects a screen based on the browser URL:
+`client/src/main.tsx` contains the `App` component and the main screens. React Router selects a screen based on the browser URL:
 
 | Path            | Screen                                                         |
 | --------------- | -------------------------------------------------------------- |
@@ -104,11 +104,11 @@ JSX is syntax for describing an HTML-like interface inside JavaScript. React com
 
 `:id` is a placeholder for a record identifier, such as `/stays/1`.
 
-`client/src/checkout.jsx` contains the payment return/recovery page and pending checkout list. `client/src/admin.jsx` contains the administration components. Hiding a screen or button improves the user experience, while the server independently enforces the required permissions.
+`client/src/checkout.tsx` contains the payment return/recovery page and pending checkout list. `client/src/admin.tsx` contains the administration components. Hiding a screen or button improves the user experience, while the server independently enforces the required permissions.
 
 ### Shared Helpers and UI State
 
-`client/src/shared.jsx` provides:
+`client/src/shared.tsx` provides:
 
 - `api()` and `send()` for server requests and JSON responses.
 - `useLoad()` for loading, data, error, and retry state.
@@ -120,9 +120,9 @@ React keeps temporary screen state in browser memory, such as form values and se
 
 ## 5. Backend
 
-`server/src/index.js` calls `createApp()` from `app.js` and starts listening for requests. The local server binds to `127.0.0.1`. The port is configurable and defaults to `3001`.
+`server/src/index.ts` calls `createApp()` from `app.ts` and starts listening for requests. The local server binds to `127.0.0.1`. The port is configurable and defaults to `3001`.
 
-`app.js` contains API routes, validation helpers, authorization checks, and catalog/admin database operations. `payments.js` handles checkout, holds, payment verification, and refunds. The application does not introduce a separate controller/service/repository hierarchy.
+`app.ts` contains API routes, validation helpers, authorization checks, and catalog/admin database operations. `payments.ts` handles checkout, holds, payment verification, and refunds. The application does not introduce a separate controller/service/repository hierarchy.
 
 Requests pass through middleware: functions that run as part of the request-handling pipeline. The application configures:
 
@@ -150,7 +150,7 @@ API errors use a consistent structure:
 
 ### Tables and Relationships
 
-The business tables are defined in `server/migrations/001_initial.sql`. The migration tracking table is created by `database.js`.
+The business tables are defined in `server/migrations/001_initial.sql`. The migration tracking table is created by `database.ts`.
 
 | Table        | Main data                                                                                    |
 | ------------ | -------------------------------------------------------------------------------------------- |
@@ -176,7 +176,7 @@ The association between a session and a user is stored inside the session data. 
 
 ### Data Integrity
 
-`database.js` enables foreign keys, Write-Ahead Logging (WAL), and a five-second busy timeout. WAL allows readers to operate alongside a writer; SQLite still permits only one writer at a time. The busy timeout allows a connection to wait for a lock up to the configured duration.
+`database.ts` enables foreign keys, Write-Ahead Logging (WAL), and a five-second busy timeout. WAL allows readers to operate alongside a writer; SQLite still permits only one writer at a time. The busy timeout allows a connection to wait for a lock up to the configured duration.
 
 The database also defines:
 
@@ -202,7 +202,7 @@ The root command starts two processes together:
 | Vite    | `http://localhost:5173` | Serve the frontend and update it during development |
 | Express | `http://localhost:3001` | Handle API requests and database access             |
 
-The frontend uses relative URLs such as `/api/properties`. The proxy in `client/vite.config.js` forwards requests beginning with `/api` to the backend on port `3001`. A proxy is an intermediary that forwards requests to another server.
+The frontend uses relative URLs such as `/api/properties`. The proxy in `client/vite.config.ts` forwards requests beginning with `/api` to the backend on port `3001`. A proxy is an intermediary that forwards requests to another server.
 
 ### Local Built Version
 
@@ -217,7 +217,7 @@ SQLite is opened by the server process and does not require a separate startup c
 
 ## 8. Login Flow
 
-1. The `Login` component in `client/src/main.jsx` collects an email and password and sends them through `send()` to `POST /api/auth/login`.
+1. The `Login` component in `client/src/main.tsx` collects an email and password and sends them through `send()` to `POST /api/auth/login`.
 2. The server validates the input and looks up an active user by email.
 3. `bcrypt.compare()` checks the submitted password against the stored hash. A hash is a one-way value used for verification, not an encrypted password that the application decrypts.
 4. On success, the server regenerates the session ID, stores `userId` in the session, and saves it through `SQLiteSessionStore` in the `sessions` table.
@@ -245,20 +245,20 @@ Direct POST /api/bookings is disabled. Existing bookings remain as legacy unpaid
 
 | Rule                                                                                       | Main enforcement location                                                                              |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Check-in cannot be in the past; check-out must follow check-in; maximum stay is 365 nights | `dates()` in `server/src/app.js`                                                                       |
-| Guests must be positive integers within the unit's capacity                                | `integer()` and `quote()` in `app.js`                                                                  |
-| Price equals nights multiplied by nightly price, in USD cents, without fees                | `quote()` in `app.js`; snapshot and verification in `payments.js`                                      |
+| Check-in cannot be in the past; check-out must follow check-in; maximum stay is 365 nights | `dates()` in `server/src/app.ts`                                                                       |
+| Guests must be positive integers within the unit's capacity                                | `integer()` and `quote()` in `app.ts`                                                                  |
+| Price equals nights multiplied by nightly price, in USD cents, without fees                | `quote()` in `app.ts`; snapshot and verification in `payments.ts`                                      |
 | Booking prices remain unchanged after listing price changes                                | `nightly_price_cents` and `total_cents` in `bookings`                                                  |
-| Confirmed bookings and active checkout holds cannot overlap                                | Immediate transactions in `payments.js`; triggers in `001_initial.sql` and `002_checkout_payments.sql` |
+| Confirmed bookings and active checkout holds cannot overlap                                | Immediate transactions in `payments.ts`; triggers in `001_initial.sql` and `002_checkout_payments.sql` |
 | Check-out day is not an occupied night                                                     | Overlap conditions in `available()` and SQL                                                            |
-| Initial cancellation is allowed only before check-in day; repeats do not duplicate refunds | `cancelBooking()` and `refund()` in `payments.js`                                                      |
-| Users can view and cancel only their own bookings                                          | `user_id` conditions in `app.js` queries                                                               |
-| Deactivation blocks new bookings and preserves existing bookings                           | `property()` and Admin routes in `app.js`                                                              |
+| Initial cancellation is allowed only before check-in day; repeats do not duplicate refunds | `cancelBooking()` and `refund()` in `payments.ts`                                                      |
+| Users can view and cancel only their own bookings                                          | `user_id` conditions in `app.ts` queries                                                               |
+| Deactivation blocks new bookings and preserves existing bookings                           | `property()` and Admin routes in `app.ts`                                                              |
 | Email must be unique                                                                       | UNIQUE constraint on `users`                                                                           |
 
 Idempotent cancellation means repeating a successful cancellation does not apply another change or update its original cancellation timestamp.
 
-The business date is calculated by `today()` in `config.js`, using `APP_TIMEZONE`, which defaults to `Asia/Jerusalem`.
+The business date is calculated by `today()` in `config.ts`, using `APP_TIMEZONE`, which defaults to `Asia/Jerusalem`.
 
 ## 11. Weather Integration
 
@@ -270,7 +270,7 @@ The server validates the provider response and limits how long it waits. Network
 
 ## 12. Migrations, Seed, and Configuration
 
-A migration is a recorded database schema change. `migrate()` in `database.js` applies SQL files in order and tracks applied files in `migrations`. It also runs when the server application is created.
+A migration is a recorded database schema change. `migrate()` in `database.ts` applies SQL files in order and tracks applied files in `migrations`. It also runs when the server application is created.
 
 Seed data is the initial sample dataset. `seed()` in the same file creates one Admin, two Customers, and twelve accommodation units across four destinations. It requires an empty database and does not run automatically on every startup.
 
@@ -281,16 +281,16 @@ npm run db:seed
 
 The explicit practice-data reset command is `npm run db:reset`. It deletes business data and sessions from the configured database, then recreates the sample data. It preserves migration history.
 
-Configuration is loaded by `config.js`. An example is provided in `server/.env.example`; the server workspace commands load `server/.env` when it exists. Settings include `PORT`, `DB_PATH`, `SESSION_SECRET`, `APP_ORIGIN`, `APP_TIMEZONE`, and the weather settings. `DB_PATH` can select a separate database for practice or testing.
+Configuration is loaded by `config.ts`. An example is provided in `server/.env.example`; the server workspace commands load `server/.env` when it exists. Settings include `PORT`, `DB_PATH`, `SESSION_SECRET`, `APP_ORIGIN`, `APP_TIMEZONE`, and the weather settings. `DB_PATH` can select a separate database for practice or testing.
 
 ## 13. API Documentation and Tests
 
 | Resource                                                        | Location                                                     |
 | --------------------------------------------------------------- | ------------------------------------------------------------ |
-| OpenAPI contract: endpoints, schemas, permissions, and examples | `server/src/openapi.js`                                      |
+| OpenAPI contract: endpoints, schemas, permissions, and examples | `server/src/openapi.ts`                                      |
 | Swagger UI                                                      | `http://localhost:3001/api/docs`                             |
 | JSON contract                                                   | `http://localhost:3001/api/openapi.json`                     |
-| Integration tests                                               | `server/test/api.test.js` and `server/test/payments.test.js` |
+| Integration tests                                               | `server/test/api.test.ts` and `server/test/payments.test.ts` |
 | Stripe sandbox setup and behavior                               | [payments.md](payments.md)                                   |
 | Requirements and expected behavior                              | [requirements.md](requirements.md)                           |
 | Verification results and coverage limits                        | [verification.md](verification.md)                           |
@@ -309,6 +309,6 @@ Server code is intentionally concentrated in a small number of files rather than
 
 ## 15. Stabilization and QA isolation
 
-The frontend adds accessibility.jsx for route focus and native confirmation dialogs, and checkout-request.js for opaque tab-local retry tokens. Business state remains server-side. payments.js persists cancellation recovery and explicit checkout refund status; migration 004_refund_recovery_status.sql adds that field without deleting data. GET checkout responses distinguish a locally expired hold from a provider-verified terminal state and include server time.
+The frontend adds accessibility.tsx for route focus and native confirmation dialogs, and checkout-request.ts for opaque tab-local retry tokens. Business state remains server-side. payments.ts persists cancellation recovery and explicit checkout refund status; migration 004_refund_recovery_status.sql adds that field without deleting data. GET checkout responses distinguish a locally expired hold from a provider-verified terminal state and include server time.
 
-The QA launcher in server/scripts/qa.js uses qa-config.js to enforce a separate database under server/data/qa, ports 3002/5174, a distinct session cookie and explicitly configured QA provider credentials. Swagger reflects the configured cookie name. Vite accepts a QA-specific API target. See [the behavior contract](stabilization.md) and [QA guide](qa-environment.md).
+The QA launcher in server/scripts/qa.ts uses qa-config.ts to enforce a separate database under server/data/qa, ports 3002/5174, a distinct session cookie and explicitly configured QA provider credentials. Swagger reflects the configured cookie name. Vite accepts a QA-specific API target. See [the behavior contract](stabilization.md) and [QA guide](qa-environment.md).

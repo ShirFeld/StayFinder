@@ -1,6 +1,6 @@
 # StayFinder
 
-A local full-stack vacation accommodation booking demo for learning UI, API and SQL testing. React + Vite (JavaScript), Express (JavaScript), SQLite, session cookies and Swagger UI. All listings and accounts are fictional practice data; stock photographs illustrate a style of accommodation and are not photographs of real bookable properties. No reviews are fabricated or displayed.
+A local full-stack vacation accommodation booking demo for learning UI, API and SQL testing. React + Vite (TypeScript), Express (TypeScript), SQLite, session cookies and Swagger UI. All listings and accounts are fictional practice data; stock photographs illustrate a style of accommodation and are not photographs of real bookable properties. No reviews are fabricated or displayed.
 
 ## Sandbox payment checkout
 
@@ -15,6 +15,8 @@ Use `4242 4242 4242 4242`, a future expiry date, and any three-digit CVC for a s
 The current flow includes cancellation confirmation, retained search filters/page, checkout recovery after refresh/browser close/session expiry, and separate pending/failed/completed refund messages. See [the behavior contract](docs/stabilization.md).
 
 For isolated local practice, run `npm run qa:db:reset` explicitly, then `npm run qa:dev`. QA uses UI port 5174, API port 3002, a separate database and cookie, and no inherited payment credentials. `npm run qa:status` shows its configuration and data counts. The Playwright workspace in [automation](automation/README.md) starts its own disposable test environment. Read [the QA setup guide](docs/qa-environment.md) for manual practice.
+
+All source code, scripts and tests use TypeScript with strict checking. The server runs through `tsx`; Vite and Playwright compile their TypeScript directly. Shared API models are in `shared/types.ts`. See [the TypeScript guide](docs/typescript.md) for configuration and checks.
 
 ## Requirements and Windows setup
 
@@ -47,7 +49,8 @@ The database was initialized during project setup, so on this prepared checkout 
 | Command            | Purpose                                                     |
 | ------------------ | ----------------------------------------------------------- |
 | npm run dev        | API watch mode and Vite together                            |
-| npm run build      | Build client/dist                                           |
+| npm run typecheck  | Check all TypeScript workspaces                             |
+| npm run build      | Typecheck all workspaces and build client/dist               |
 | npm start          | Serve API and built client at http://localhost:3001         |
 | npm test           | HTTP integration checks on isolated in-memory SQLite        |
 | npm run db:migrate | Apply unapplied versioned SQL migrations                    |
@@ -60,7 +63,7 @@ For another database set DB_PATH in server/.env, e.g. `./data/practice-test.sqli
 
 ## Environment
 
-Use server/.env.example. Workspace npm commands run server with server/ as the working directory, so dotenv loads server/.env. PORT defaults to 3001; the Vite proxy targets that port. If you change PORT, update client/vite.config.js. APP_ORIGIN is the browser origin used for mutation origin checks. APP_TIMEZONE controls the business date (default Asia/Jerusalem), not the browser clock. SESSION_SECRET secures the cookie session signature; session records live in SQLite. The production mode requires a secret of at least 32 characters and HTTPS because its cookie is Secure; the supplied npm start command is a local preview, not an internet deployment recipe.
+Use server/.env.example. Workspace npm commands run server with server/ as the working directory, so dotenv loads server/.env. PORT defaults to 3001; the Vite proxy targets that port. If you change PORT, update client/vite.config.ts. APP_ORIGIN is the browser origin used for mutation origin checks. APP_TIMEZONE controls the business date (default Asia/Jerusalem), not the browser clock. SESSION_SECRET secures the cookie session signature; session records live in SQLite. The production mode requires a secret of at least 32 characters and HTTPS because its cookie is Secure; the supplied npm start command is a local preview, not an internet deployment recipe.
 
 ## Weather provider
 
@@ -83,18 +86,18 @@ Non-2xx HTTP, malformed JSON/schema, network errors or timeout return 503 WEATHE
 
 ## Structure and request flow
 
-- client/src/main.jsx: routes, home, search, detail, login and bookings.
-- client/src/admin.jsx: accommodation, user and booking administration.
-- client/src/checkout.jsx: hosted-payment return, verification and hold recovery.
-- client/src/shared.jsx: fetch wrapper, async state and image fallback.
+- client/src/main.tsx: routes, home, search, detail, login and bookings.
+- client/src/admin.tsx: accommodation, user and booking administration.
+- client/src/checkout.tsx: hosted-payment return, verification and hold recovery.
+- client/src/shared.tsx: fetch wrapper, async state and image fallback.
 - client/src/styles.css: desktop and mobile presentation.
-- server/src/app.js: API validation, authorization and business operations.
-- server/src/payments.js: Stripe Checkout, holds, verification, cancellation and refunds.
-- server/scripts/stripe-listen.js: local webhook forwarding.
-- server/src/database.js and server/migrations/: connection, migrations and explicit seed/reset.
-- server/src/session-store.js: durable SQLite session store.
-- server/src/openapi.js: API contract rendered by Swagger UI.
-- server/test/api.test.js: Node HTTP integration checks, not a Playwright project.
+- server/src/app.ts: API validation, authorization and business operations.
+- server/src/payments.ts: Stripe Checkout, holds, verification, cancellation and refunds.
+- server/scripts/stripe-listen.ts: local webhook forwarding.
+- server/src/database.ts and server/migrations/: connection, migrations and explicit seed/reset.
+- server/src/session-store.ts: durable SQLite session store.
+- server/src/openapi.ts: API contract rendered by Swagger UI.
+- server/test/api.test.ts: Node HTTP integration checks, not a Playwright project.
 - docs/: requirements, architecture and SQL practice.
 
 UI form → same-origin /api fetch (Vite proxy in development) → Express session and role checks → input/business validation → SQLite query or immediate transaction → JSON → UI loading, success or error state. Checkout creation atomically checks availability and snapshots the server price in a temporary hold. Verified Stripe payment creates the booking in a separate immediate transaction. SQLite triggers also reject overlaps; cancellation changes status rather than deleting history. Money is not recalculated when listing prices change.
@@ -113,4 +116,4 @@ See the [documentation guide](docs/README.md) for architecture, requirements, QA
 
 ## Automated testing
 
-The [automation workspace](automation/README.md) contains JavaScript Playwright API, SQL and desktop/mobile UI suites, isolated data, payment failure scenarios, HTML/JUnit reports and a CI workflow. Run `npm run test:sanity` for critical flows, `npm run test:automation` for all scenarios and `npm run test:report` to inspect results. No running application or Stripe credentials are needed. External Stripe/weather behavior is controlled; this does not replace a real sandbox integration smoke check.
+The [automation workspace](automation/README.md) contains TypeScript Playwright API, SQL and desktop/mobile UI suites, isolated data, payment failure scenarios, HTML/JUnit reports and a CI workflow. Run `npm run test:sanity` for critical flows, `npm run test:automation` for all scenarios and `npm run test:report` to inspect results. No running application or Stripe credentials are needed. External Stripe/weather behavior is controlled; this does not replace a real sandbox integration smoke check.

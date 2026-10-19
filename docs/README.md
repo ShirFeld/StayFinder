@@ -15,6 +15,6 @@
 | [Image credits](image-credits.md) | Sources of bundled sample images. |
 | [Conversation checkpoint](conversation-checkpoint.md) | Historical development context; current behavior is described by the guides above. |
 
-The API contract is maintained in `server/src/openapi.js`. With the normal API running, open <http://localhost:3001/api/docs> for Swagger UI or <http://localhost:3001/api/openapi.json> for the JSON specification. The QA API exposes the same routes on port 3002.
+The API contract is maintained in `server/src/openapi.ts`. With the normal API running, open <http://localhost:3001/api/docs> for Swagger UI or <http://localhost:3001/api/openapi.json> for the JSON specification. The QA API exposes the same routes on port 3002.
 
 Server integration tests live in `server/test/`. The Playwright project now lives in `automation/` with independent disposable databases. One-off development scripts, historical browser profiles and temporary verification output were removed during repository cleanup; verification reports remain as a historical record, not as runnable browser tests.

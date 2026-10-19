@@ -1,6 +1,6 @@
 # StayFinder automation
 
-JavaScript + Playwright Test, covering the real React UI, Express API and SQLite database. No running development server, Stripe account or secret key is required.
+TypeScript + Playwright Test, covering the real React UI, Express API and SQLite database. No running development server, Stripe account or secret key is required.
 
 ## Quick start (Windows / VS Code)
 
@@ -44,18 +44,18 @@ npm exec -w automation --call "playwright test --project=api --grep PAY-06"
 
 ```text
 automation/
-|-- api/client.js                  HTTP helper with explicit expected status
-|-- data/builders.js               Demo accounts and relative-date input builders
+|-- api/client.ts                  HTTP helper with explicit expected status
+|-- data/builders.ts               Demo accounts and relative-date input builders
 |-- data/endpoints.json            All documented operations mapped to test cases
-|-- fixtures/test.js               Isolated database, real app, sessions and providers
-|-- fixtures/ui.fixture.js         Injected Page Objects and browser-only fixtures
+|-- fixtures/test.ts               Isolated database, real app, sessions and providers
+|-- fixtures/ui.fixture.ts         Injected Page Objects and browser-only fixtures
 |-- pages/                         UI Page Objects plus shared shell/dialog components
-|-- support/build-client.js        Build the UI once before a run
-|-- support/endpoint-reporter.js   Observe actual HTTP operations and status codes
+|-- support/build-client.ts        Build the UI once before a run
+|-- support/endpoint-reporter.ts   Observe actual HTTP operations and status codes
 |-- tests/api/                     Sanity, catalog, auth, admin, payments and weather
 |-- tests/db/                      SQL integrity, constraints and persisted behavior
 |-- tests/ui/                      Desktop and mobile browser journeys
-|-- playwright.config.js           Projects, timeouts, retries and reporting
+|-- playwright.config.ts           Projects, timeouts, retries and reporting
 |-- reports/                       Generated HTML, JUnit, JSON and endpoint reports
 |-- test-results/                  Generated traces, screenshots and videos on failure
 ```
@@ -83,7 +83,7 @@ Two workers run in parallel by default. `--workers=1` is useful while learning/d
 | HTTP routes, authorization, validation and sessions | Real Express app and HttpOnly cookies.                                                                      |
 | Booking/payment business logic                      | Real application service and transactions.                                                                  |
 | SQLite, migrations, SQL constraints and triggers    | Real file database, isolated per worker.                                                                    |
-| Stripe network                                      | Controlled `StripeDouble`, reused from `server/test/stripe-double.js`.                                      |
+| Stripe network                                      | Controlled `StripeDouble`, reused from `server/test/stripe-double.ts`.                                      |
 | Stripe signature verification                       | Actual Stripe SDK signing/verification with a test-only local signing secret.                               |
 | Hosted Stripe browser page                          | A clearly labeled controlled page substituted at the external browser network boundary. No card is charged. |
 | Weather network                                     | Local provider substitute; success, HTTP error, malformed body and timeout are controlled.                  |
@@ -111,8 +111,8 @@ To inspect a failure, open the HTML report and select its trace. Use the Trace V
 ## Adding a test
 
 ```javascript
-import { test, expect } from "../../fixtures/test.js";
-import { stay } from "../../data/builders.js";
+import { test, expect } from "../../fixtures/test.ts";
+import { stay } from "../../data/builders.ts";
 
 test("MY-01 checkout starts unpaid @payments", async ({ actors, system }) => {
   const checkout = await actors.customer.checkout(stay(system.today));
@@ -132,21 +132,21 @@ The design follows the official Playwright guides for [fixtures](https://playwri
 
 ## Page Object Model and fixtures
 
-All UI journeys import `test` and `expect` from `fixtures/ui.fixture.js`. This extends the existing infrastructure fixtures in `fixtures/test.js`, keeping API/DB tests independent of UI abstractions.
+All UI journeys import `test` and `expect` from `fixtures/ui.fixture.ts`. This extends the existing infrastructure fixtures in `fixtures/test.ts`, keeping API/DB tests independent of UI abstractions.
 
 | Layer | Responsibility |
 | --- | --- |
-| `tests/ui/journeys.spec.js` | Scenario order and assertions. No element selectors or Page Object construction. |
-| `fixtures/ui.fixture.js` | Creates requested Page Objects for the current test's browser page. Installs/removes the external payment stub and page-error listener when requested. |
-| `pages/*.page.js` | Semantic locators and reusable page interactions. Login, catalog, accommodation, checkout, bookings and admin. |
+| `tests/ui/journeys.spec.ts` | Scenario order and assertions. No element selectors or Page Object construction. |
+| `fixtures/ui.fixture.ts` | Creates requested Page Objects for the current test's browser page. Installs/removes the external payment stub and page-error listener when requested. |
+| `pages/*.page.ts` | Semantic locators and reusable page interactions. Login, catalog, accommodation, checkout, bookings and admin. |
 | `pages/components/` | Shared application shell and booking cancellation dialog. |
-| `fixtures/test.js` | Real application lifecycle, isolated database, API actors and controlled providers. |
-| `api/client.js` | HTTP operations for API tests; API requests do not need browser Page Objects. |
+| `fixtures/test.ts` | Real application lifecycle, isolated database, API actors and controlled providers. |
+| `api/client.ts` | HTTP operations for API tests; API requests do not need browser Page Objects. |
 
 For example:
 
 ```javascript
-import { test, expect } from '../../fixtures/ui.fixture.js';
+import { test, expect } from '../../fixtures/ui.fixture.ts';
 
 test('customer can reach the catalog', async ({ loginPage, catalogPage }) => {
   await loginPage.signIn();
@@ -156,10 +156,10 @@ test('customer can reach the catalog', async ({ loginPage, catalogPage }) => {
 
 `loginPage` and `catalogPage` are fixture names. Playwright creates them on demand, attaches both to the same isolated page for that test and tears down the browser context afterward. Tests do not call `new LoginPage(page)` or duplicate `getByRole`/`getByLabel` selectors. Assertions stay visible in the test; Page Objects expose locators and actions rather than deciding the expected business outcome. Built-in `page` is still used for URL assertions when needed.
 
-The provider substitute stays in `support/hosted-payment-stub.js`: it represents a controlled external boundary, not the real Stripe page. API/DB fixtures remain available in UI tests for arranging data and verifying persisted outcomes.
+The provider substitute stays in `support/hosted-payment-stub.ts`: it represents a controlled external boundary, not the real Stripe page. API/DB fixtures remain available in UI tests for arranging data and verifying persisted outcomes.
 
 ## Watch UI sanity tests
 
-From the repository root run `npm run test:sanity:ui` to watch the three Chromium sanity journeys, one browser at a time. Use `npm run test:sanity:debug` to step through actions in the Playwright Inspector. The tag `@sanity` defines critical scenarios across both API and UI suites; it does not mean a test is necessarily a browser test. UI sanity cases are UI-01, UI-03 and UI-04 in tests/ui/journeys.spec.js. The file tests/api/sanity.spec.js contains API checks.
+From the repository root run `npm run test:sanity:ui` to watch the three Chromium sanity journeys, one browser at a time. Use `npm run test:sanity:debug` to step through actions in the Playwright Inspector. The tag `@sanity` defines critical scenarios across both API and UI suites; it does not mean a test is necessarily a browser test. UI sanity cases are UI-01, UI-03 and UI-04 in tests/ui/journeys.spec.ts. The file tests/api/sanity.spec.ts contains API checks.
 
 On this Windows/npm installation, use named npm scripts or `npm exec -w automation --call "playwright ..."` for custom commands. The alternative `npm exec -w automation -- playwright ...` did not forward arguments correctly during verification and reported No tests found.
