@@ -17,3 +17,8 @@ server/qa.env
 # Playwright automation artifacts
 automation/reports/
 automation/.auth/
+
+# CI reports and downloaded artifacts
+server/reports/
+ci-artifacts/
+quality.log

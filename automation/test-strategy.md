@@ -38,7 +38,7 @@
 
 ## CI and execution policy
 
-The GitHub Actions workflow runs `npm ci`, installs Chromium with Linux dependencies, runs the Node suite and then the complete Playwright suite. Reports are uploaded even on failure for fourteen days. It runs on pushes, pull requests and manual dispatch once the repository is hosted on GitHub. The workflow is provided as code; a successful local run does not mean a hosted CI run has already occurred.
+The GitHub Actions workflow runs independent quality/build, Node server, Playwright API/DB and Playwright UI jobs. Each installs its own dependencies; only the UI job installs Chromium and builds the frontend. Playwright continues after test failures (`maxFailures: 0`) and runs headlessly on CI. A final always-running summary collects job states and available report counts, and stays failed when any required group fails or reports are unavailable. Each group uploads distinct artifacts even on failure for fourteen days. It runs on pushes, pull requests and manual dispatch. See [the CI guide](../docs/ci.md) for exact check names, report paths, prerequisite failures and GitHub settings. A successful local run does not mean a hosted CI run has already occurred.
 
 ## Limits and next extensions
 

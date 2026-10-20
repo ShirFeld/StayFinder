@@ -3,8 +3,81 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+
 jobs:
-  automation:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Check types and build
+        shell: bash
+        run: npm run build 2>&1 | tee quality.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: quality.log
+          retention-days: 14
+
+  server-tests:
+    name: server-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run server regression tests
+        run: npm run test:ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-test-reports
+          path: server/reports/
+          retention-days: 14
+
+  api-tests:
+    name: api-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run API and database tests
+        run: npm run test:api
+        env:
+          STAYFINDER_SKIP_CLIENT_BUILD: "1"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-reports
+          path: |
+            automation/reports/
+            automation/test-results/
+          retention-days: 14
+
+  ui-tests:
+    name: ui-tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -17,16 +90,35 @@ jobs:
       - run: npx playwright install --with-deps chromium
         env:
           PLAYWRIGHT_SKIP_BROWSER_GC: "1"
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:automation
-        env:
-          CI: "true"
+      - name: Run desktop and mobile UI tests
+        run: npm run test:ui
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: automation-reports
+          name: ui-test-reports
           path: |
             automation/reports/
             automation/test-results/
           retention-days: 14
+
+  summary:
+    name: summary
+    needs: [quality, server-tests, api-tests, ui-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-reports"
+          path: ci-artifacts
+      - name: Publish combined results
+        if: always()
+        env:
+          VERIFICATION_JOBS: ${{ toJSON(needs) }}
+        # The summary uses only Node built-ins, even if npm ci failed upstream.
+        run: node --experimental-strip-types .github/scripts/verification-summary.ts ci-artifacts

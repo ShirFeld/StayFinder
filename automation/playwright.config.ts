@@ -6,6 +6,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  maxFailures: 0,
+  globalTimeout: process.env.CI ? 10 * 60 * 1000 : 0,
   workers: 2,
   timeout: 30000,
   expect: { timeout: 7000 },
@@ -21,7 +23,7 @@ export default defineConfig({
     ["json", { outputFile: "reports/results.json" }],
   ],
   use: {
-    headless: false,
+    headless: !!process.env.CI,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

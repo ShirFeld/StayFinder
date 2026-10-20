@@ -14,7 +14,7 @@ npm run test:automation
 npm run test:report
 ```
 
-The first command installs all three npm workspaces. Browser installation is only needed after a fresh setup or a Playwright upgrade. Each test run builds the frontend automatically. You do not need `npm run dev` or `npm run qa:dev`.
+The first command installs all three npm workspaces. Browser installation is only needed after a fresh setup or a Playwright upgrade. Runs build the frontend automatically unless `STAYFINDER_SKIP_CLIENT_BUILD=1` is set for an API-only run. This builds only the client; run `npm run typecheck` separately for strict type checks. You do not need `npm run dev` or `npm run qa:dev`.
 
 | Root command              | Purpose                                                         |
 | ------------------------- | --------------------------------------------------------------- |
@@ -61,6 +61,8 @@ automation/
 ```
 
 Reports and failure artifacts are ignored by Git. The CI workflow is in `../.github/workflows/automation.yml`.
+
+GitHub runs independent `quality`, `server-tests`, `api-tests` and `ui-tests` jobs, followed by an always-running `summary`. API jobs skip the UI build and browser installation. CI uses headless browsers and continues independent groups after failures. See [CI jobs, reports and required GitHub settings](../docs/ci.md).
 
 ## How isolation works
 
