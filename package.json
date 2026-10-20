@@ -16,6 +16,7 @@
     "db:seed": "npm run db:seed -w server",
     "db:reset": "npm run db:reset -w server -- --confirm",
     "test": "npm run test -w server",
+    "test:ci": "npm run test:ci -w server",
     "payments:listen": "node --import tsx server/scripts/stripe-listen.ts",
     "qa:dev": "node --import tsx server/scripts/qa.ts dev",
     "qa:api": "node --import tsx server/scripts/qa.ts api",

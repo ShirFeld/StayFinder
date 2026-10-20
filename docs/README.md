@@ -4,6 +4,7 @@
 | --- | --- |
 | [Automation guide](../automation/README.md) | Playwright setup, commands, fixtures, reports and isolation. |
 | [Test strategy](../automation/test-strategy.md) | Coverage layers, interview walkthrough and limitations. |
+| [GitHub CI](ci.md) | Independent checks, combined reports and required GitHub repository settings. |
 | [Project README](../README.md) | Installation, startup commands, demo accounts and limitations. |
 | [Architecture](architecture.md) | Project structure, responsibilities and request flows. |
 | [Requirements](requirements.md) | Features and business rules to derive test cases from. |

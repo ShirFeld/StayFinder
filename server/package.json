@@ -10,6 +10,7 @@
     "db:seed": "node --import tsx src/database.ts seed",
     "db:reset": "node --import tsx src/database.ts reset",
     "test": "node --import tsx --test --test-concurrency=1 test/*.test.ts",
+    "test:ci": "node --import tsx scripts/test-ci.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

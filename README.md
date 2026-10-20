@@ -117,3 +117,5 @@ See the [documentation guide](docs/README.md) for architecture, requirements, QA
 ## Automated testing
 
 The [automation workspace](automation/README.md) contains TypeScript Playwright API, SQL and desktop/mobile UI suites, isolated data, payment failure scenarios, HTML/JUnit reports and a CI workflow. Run `npm run test:sanity` for critical flows, `npm run test:automation` for all scenarios and `npm run test:report` to inspect results. No running application or Stripe credentials are needed. External Stripe/weather behavior is controlled; this does not replace a real sandbox integration smoke check.
+
+GitHub runs independent quality/build, server, API/DB and UI checks, then publishes a combined summary even when a group fails. `npm run test:ci` creates server JUnit/TAP reports. See [the CI guide](docs/ci.md) for report artifacts and the required GitHub settings.
