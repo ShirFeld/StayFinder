@@ -31,6 +31,7 @@ export async function api<T = unknown>(
     if (error.name === "AbortError") throw error;
     throw new Error(
       "Could not reach StayFinder. Check your connection and try again.",
+      { cause: caught },
     );
   }
   const data = r.status === 204 ? null : await r.json();

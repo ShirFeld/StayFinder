@@ -1,3 +1,57 @@
+# Resume here - October 18, 2026
+
+The user asked to save the latest learning discussion. No implementation changes were requested. Continue explaining the existing code in Hebrew, gradually and using actual file references. Documentation stays English.
+
+## Latest explanation: automation/fixtures/test.js
+
+Read the current file and explained these responsibilities:
+
+- `base.extend` extends Playwright's test with custom fixtures; fixtures are initialized on demand along with their dependencies.
+- `workerDatabase` creates a unique OS temporary directory and SQLite file per worker, overrides test configuration before importing server modules, and closes/removes its own database directory at worker teardown. A worker is a process running tests; scope is worker.
+- `system` depends on workerDatabase and is test-scoped. Before each test it runs migrations, clears only the temporary test data, reseeds fixed demo data, creates controlled Stripe/weather providers and starts the actual app on a free loopback port. The file database is shared within a worker, but its data is reset per test.
+- `system` exposes url, business-day today, SQL assertion helpers and explicit scenario controls. `system.pay(checkoutId)` marks payment complete in the controlled provider; it does not itself create a booking. The real app must verify payment and apply business rules.
+- `await use(system)` makes the prepared resource available to the test/dependent fixtures. After they finish, finally attaches observed API operations and failure DB summaries, then closes app/weather servers.
+- `baseURL` depends on system and supplies its URL so page.goto('/login') targets that test's server.
+- `actors` depends on system and creates separate Playwright API request contexts for anonymous, two customers and admin. Registered actors log in through the real API, preserving separate session cookies. Tests call actors.customer.get('/bookings'), etc. Finally disposes all contexts.
+
+Main distinction emphasized: the DB file is created per worker, while data is reset and servers are recreated per test. The previous reply walked through the file at a conceptual level; no line-by-line deep dive has happened yet. Continue from follow-up questions rather than reimplementing the framework.
+
+## Previous question: cleanup in UI fixtures
+
+The user correctly observed that Page Object fixtures in ui.fixture.js construct objects without explicit disposal. Explained that POM instances only hold page/locator references; Playwright owns the page/context lifecycle, and unreferenced POM objects can be garbage-collected. By contrast, hostedPayment installs a route interception and removes it via dispose in finally; pageErrors registers a listener and removes it in finally. Creating an object does not automatically mean it owns a resource requiring explicit cleanup.
+
+No application or automation source was edited during these explanations. This section supersedes older resume points below.
+
+---
+
+# Resume here - October 17, 2026
+
+The user asked to save the discussion and continue tomorrow. This is a learning/explanation checkpoint, not a request for more implementation now. Use this latest section before older historical entries below.
+
+## Where the discussion stopped
+
+The last question was the difference between automation/fixtures/test.js and automation/fixtures/ui.fixture.js. Explained in Hebrew:
+
+- test.js extends Playwright fixtures with isolated worker SQLite, fresh seeds per test, the real app server, authenticated API actors, controlled Stripe/weather and teardown. It is infrastructure, not a spec file.
+- ui.fixture.js imports and extends test.js, adding test-scoped Page Objects, browser page-error collection and an on-demand external hosted-payment stub. UI tests can still request system/actors inherited from test.js.
+- API/DB tests import test/expect from fixtures/test.js; UI tests import from fixtures/ui.fixture.js. Actual tests are the *.spec.js files.
+
+The user wants to understand the code gradually, with concrete file references and explanations of unfamiliar terms. Chat explanations should be Hebrew; documentation stays English. Resume with follow-up questions or a gradual walkthrough of UI-01 when requested, rather than automatically adding features.
+
+## Login, sanity and visible-browser discussion
+
+- UI login scenario: automation/tests/ui/journeys.spec.js, UI-01. It calls loginPage.signIn(); the actual input/click actions live in automation/pages/login.page.js; the Page Object is provided by fixtures/ui.fixture.js.
+- Sanity is a tag across layers, not one file: UI-01, UI-03 and UI-04 are tagged @sanity in UI journeys. tests/api/sanity.spec.js contains API checks. UI checks interactions/navigation, API checks server behavior, DB checks persisted state. A scenario can combine layers.
+- The originally suggested npm exec -w automation -- playwright ... command failed locally with No tests found due to argument forwarding. Named npm scripts or npm exec -w automation --call "playwright ..." worked.
+- Reliable root commands added: npm run test:sanity:ui (Chromium, @sanity, --headed, one worker), npm run test:sanity:debug (Inspector, --debug). The headed sanity run passed all three tests.
+- Current file inspection at this checkpoint shows headless: false in automation/playwright.config.js under use. Preserve that existing setting; it was present when saving. Previously only instructions to add it were given in chat. --headed is a per-run override; headless:false is the shared configuration default. API tests do not launch a browser regardless of this flag.
+
+## Verification and boundaries
+
+The prior full automation run passed 57 executions, exercised all 26 documented API operations and passed the 29 existing server tests. After the POM refactor, all 16 desktop/mobile UI executions passed. The most recent headed sanity run passed three tests, so generated reports currently describe that subset (15/26 operations), not a fresh full-suite run. CI workflow exists but was not run on GitHub. Stripe/weather are controlled in default automation; no real payment network or charge is used. Normal and manual QA databases are not reset by automation. No source changes were requested while saving this checkpoint.
+
+---
+
 # POM and fixture update
 
 UI journeys now import fixtures/ui.fixture.js. All page interactions/locators live in injected Page Objects (login, catalog, stay, checkout, bookings, admin) and reusable app-shell/cancellation-dialog components. API/DB tests retain fixtures/test.js and the HTTP client. The browser provider substitute is separately managed by an on-demand fixture. See automation/README.md for the example and responsibilities.

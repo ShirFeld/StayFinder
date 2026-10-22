@@ -166,10 +166,9 @@ export function createPayments({
     let c = db
       .transaction(() => {
         const existing = db
-          .prepare<
-            unknown[],
-            CheckoutRow
-          >("SELECT * FROM checkouts WHERE user_id=? AND request_key=?")
+          .prepare<unknown[], CheckoutRow>(
+            "SELECT * FROM checkouts WHERE user_id=? AND request_key=?",
+          )
           .get(user.id, requestKey)!;
         if (existing) {
           if (
@@ -187,10 +186,9 @@ export function createPayments({
         }
         if (
           db
-            .prepare<
-              unknown[],
-              { n: number }
-            >("SELECT count(*) n FROM checkouts WHERE user_id=? AND status IN ('creating','open') AND expires_at>?")
+            .prepare<unknown[], { n: number }>(
+              "SELECT count(*) n FROM checkouts WHERE user_id=? AND status IN ('creating','open') AND expires_at>?",
+            )
             .get(user.id, now())!.n >= 5
         )
           fail(
@@ -206,10 +204,9 @@ export function createPayments({
             "The stay total must be between $0.50 and $999,999.99 for card checkout.",
           );
         const p = db
-          .prepare<
-            unknown[],
-            PropertyRow
-          >("SELECT name FROM properties WHERE id=?")
+          .prepare<unknown[], PropertyRow>(
+            "SELECT name FROM properties WHERE id=?",
+          )
           .get(q.propertyId)!;
         const id = randomUUID(),
           expiry = now() + 31 * 60;
@@ -373,22 +370,19 @@ export function createPayments({
           )
             return fresh;
           const p = db
-            .prepare<
-              unknown[],
-              PropertyRow
-            >("SELECT active,capacity FROM properties WHERE id=?")
+            .prepare<unknown[], PropertyRow>(
+              "SELECT active,capacity FROM properties WHERE id=?",
+            )
             .get(fresh.property_id)!;
           const conflict = db
-            .prepare<
-              unknown[],
-              BookingRow
-            >("SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?")
+            .prepare<unknown[], BookingRow>(
+              "SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?",
+            )
             .get(fresh.property_id, fresh.check_out, fresh.check_in)!;
           const otherHold = db
-            .prepare<
-              unknown[],
-              CheckoutRow
-            >("SELECT id FROM checkouts WHERE id<>? AND property_id=? AND status IN ('creating','open') AND expires_at>? AND check_in<? AND check_out>?")
+            .prepare<unknown[], CheckoutRow>(
+              "SELECT id FROM checkouts WHERE id<>? AND property_id=? AND status IN ('creating','open') AND expires_at>? AND check_in<? AND check_out>?",
+            )
             .get(
               id,
               fresh.property_id,
@@ -403,10 +397,9 @@ export function createPayments({
             !p?.active ||
             fresh.guests > p.capacity ||
             !db
-              .prepare<
-                unknown[],
-                UserRow
-              >("SELECT id FROM users WHERE id=? AND active=1")
+              .prepare<unknown[], UserRow>(
+                "SELECT id FROM users WHERE id=? AND active=1",
+              )
               .get(fresh.user_id)! ||
             conflict ||
             otherHold ||
@@ -470,10 +463,9 @@ export function createPayments({
     const b = db
       .transaction(() => {
         const row = db
-          .prepare<
-            unknown[],
-            BookingRow
-          >("SELECT * FROM bookings WHERE id=? AND user_id=?")
+          .prepare<unknown[], BookingRow>(
+            "SELECT * FROM bookings WHERE id=? AND user_id=?",
+          )
           .get(integer(id, "Booking ID"), userId)!;
         if (!row) fail(404, "NOT_FOUND", "Booking not found.");
         if (row.status !== "cancelled") {
@@ -579,10 +571,9 @@ export function createPayments({
       ].includes(event.type)
     ) {
       const c = db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT * FROM checkouts WHERE stripe_session_id=? OR id=?")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT * FROM checkouts WHERE stripe_session_id=? OR id=?",
+        )
         .get(obj.id, obj.metadata?.checkoutId || "")!;
       if (c) await synchronize(c.id);
     } else if (
@@ -591,10 +582,9 @@ export function createPayments({
       )
     ) {
       const c = db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT * FROM checkouts WHERE refund_id=?")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT * FROM checkouts WHERE refund_id=?",
+        )
         .get(obj.id)!;
       if (c) await refund(c);
     }
@@ -607,10 +597,9 @@ export function createPayments({
     reconciling = true;
     try {
       const rows = db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT id FROM checkouts WHERE status IN ('creating','open','refund_pending') ORDER BY updated_at LIMIT 100")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT id FROM checkouts WHERE status IN ('creating','open','refund_pending') ORDER BY updated_at LIMIT 100",
+        )
         .all();
       for (const row of rows) {
         try {
@@ -635,10 +624,9 @@ export function createPayments({
     out,
     list: (userId: number) =>
       db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT * FROM checkouts WHERE user_id=? ORDER BY created_at DESC LIMIT 50")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT * FROM checkouts WHERE user_id=? ORDER BY created_at DESC LIMIT 50",
+        )
         .all(userId)
         .map(out),
   };

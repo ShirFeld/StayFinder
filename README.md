@@ -18,9 +18,13 @@ For isolated local practice, run `npm run qa:db:reset` explicitly, then `npm run
 
 All source code, scripts and tests use TypeScript with strict checking. The server runs through `tsx`; Vite and Playwright compile their TypeScript directly. Shared API models are in `shared/types.ts`. See [the TypeScript guide](docs/typescript.md) for configuration and checks.
 
+ESLint checks TypeScript, React Hooks and Playwright tests locally and in the GitHub `quality` job. Run `npm run lint`, or `npm run lint:fix` for automatic fixes. See [the linting guide](docs/linting.md) for the rule groups and VS Code setup.
+
+Prettier uses the project's pinned version and shared `.prettierrc.json` settings. Run `npm run format` to format supported files, or `npm run format:check` to check without changing them. VS Code formats on save with the Prettier extension. The CI `quality` job also checks formatting. See [the formatting guide](docs/formatting.md).
+
 ## Requirements and Windows setup
 
-Node.js 22 LTS and npm, VS Code, Windows PowerShell. SQLite is bundled through better-sqlite3; no separate database service is needed. A supported Node version matters because better-sqlite3 is a native dependency. Run commands from the project root:
+Node.js 22 LTS (22.13 or newer) and npm, VS Code, Windows PowerShell. The tested Node version is recorded in `.nvmrc` and used by GitHub Actions. SQLite is bundled through better-sqlite3; no separate database service is needed. A supported Node version matters because better-sqlite3 is a native dependency. Run commands from the project root:
 
 ```powershell
 npm install
@@ -46,16 +50,21 @@ The database was initialized during project setup, so on this prepared checkout 
 
 ## Commands
 
-| Command            | Purpose                                                     |
-| ------------------ | ----------------------------------------------------------- |
-| npm run dev        | API watch mode and Vite together                            |
-| npm run typecheck  | Check all TypeScript workspaces                             |
-| npm run build      | Typecheck all workspaces and build client/dist               |
-| npm start          | Serve API and built client at http://localhost:3001         |
-| npm test           | HTTP integration checks on isolated in-memory SQLite        |
-| npm run db:migrate | Apply unapplied versioned SQL migrations                    |
-| npm run db:seed    | Seed an empty practice database                             |
-| npm run db:reset   | Explicitly delete practice business/session data and reseed |
+| Command              | Purpose                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| npm run dev          | API watch mode and Vite together                               |
+| npm run typecheck    | Check all TypeScript workspaces                                |
+| npm run lint         | ESLint checks across application code, scripts and tests       |
+| npm run lint:fix     | Apply safe automatic ESLint fixes                              |
+| npm run format       | Format supported source, configuration and documentation files |
+| npm run format:check | Check formatting without modifying files                       |
+| npm run check        | Formatting, ESLint, all TypeScript checks and client build     |
+| npm run build        | Typecheck all workspaces and build client/dist                 |
+| npm start            | Serve API and built client at http://localhost:3001            |
+| npm test             | HTTP integration checks on isolated in-memory SQLite           |
+| npm run db:migrate   | Apply unapplied versioned SQL migrations                       |
+| npm run db:seed      | Seed an empty practice database                                |
+| npm run db:reset     | Explicitly delete practice business/session data and reseed    |
 
 Reset is destructive for the configured DB_PATH. It preserves migration history, clears sessions, and restores the three users and twelve units. It is intended only for this practice database. The lower-level command requires confirmation: `npm run db:reset -w server -- --confirm`.
 

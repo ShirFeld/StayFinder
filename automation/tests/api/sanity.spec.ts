@@ -64,7 +64,9 @@ test("AUTH-02 customer and anonymous users cannot access administrator endpoints
   actors,
 }) => {
   for (const path of ["/admin/properties", "/admin/users", "/admin/bookings"]) {
-    await actors.anonymous.get(path, { status: 401 });
-    await actors.customer.get(path, { status: 403 });
+    const anonymous = await actors.anonymous.get(path, { status: 401 });
+    expect(anonymous.error.code).toBe("UNAUTHENTICATED");
+    const customer = await actors.customer.get(path, { status: 403 });
+    expect(customer.error.code).toBe("FORBIDDEN");
   }
 });

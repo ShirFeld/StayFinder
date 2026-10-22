@@ -2,15 +2,17 @@
 
 The workflow in `.github/workflows/automation.yml` runs on pushes to any branch, pull requests and manual dispatch. Merging into `main` updates that branch and triggers another push run.
 
+All jobs use the tested Node 22 version recorded in the root `.nvmrc` file. Update that file when adopting a newer Node 22 release so local version managers and GitHub Actions use the same version.
+
 ## Independent checks
 
-| Check name | Command | Preparation |
-| --- | --- | --- |
-| `quality` | `npm run build` | Install dependencies; check all TypeScript workspaces and build the client. |
-| `server-tests` | `npm run test:ci` | Install dependencies; run the Node regression suite with spec, JUnit and TAP reporters. |
-| `api-tests` | `npm run test:api` | Install dependencies; set `STAYFINDER_SKIP_CLIENT_BUILD=1`. No browser installation or frontend build. |
-| `ui-tests` | `npm run test:ui` | Install dependencies and Chromium/Linux dependencies; build the client and run desktop/mobile UI tests. |
-| `summary` | Standalone TypeScript summary script | Wait for all four checks, download available reports, and publish the combined results. |
+| Check name     | Command                              | Preparation                                                                                                                  |
+| -------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `quality`      | `npm run check`                      | Install dependencies; check Prettier formatting, run ESLint, check TypeScript configuration/workspaces and build the client. |
+| `server-tests` | `npm run test:ci`                    | Install dependencies; run the Node regression suite with spec, JUnit and TAP reporters.                                      |
+| `api-tests`    | `npm run test:api`                   | Install dependencies; set `STAYFINDER_SKIP_CLIENT_BUILD=1`. No browser installation or frontend build.                       |
+| `ui-tests`     | `npm run test:ui`                    | Install dependencies and Chromium/Linux dependencies; build the client and run desktop/mobile UI tests.                      |
+| `summary`      | Standalone TypeScript summary script | Wait for all four checks, download available reports, and publish the combined results.                                      |
 
 The first four jobs have no `needs` dependency on each other. A failed group does not stop another group. Playwright has `maxFailures: 0`, so an ordinary test failure does not stop the rest of its suite. CI allows one retry; a test that passes on retry is reported as flaky.
 
@@ -22,7 +24,7 @@ The summary runs with `if: always()` and returns failure if a prerequisite job f
 
 Open the workflow run's Summary page for job statuses and per-group passed/failed/flaky/skipped counts. Download artifacts from the same run:
 
-- `quality-reports`: build/type-check log.
+- `quality-reports`: formatting/ESLint/type-check/build log.
 - `server-test-reports`: `junit.xml` and `results.tap`, with individual server test names and results.
 - `api-test-reports`: `reports/html/index.html`, JUnit/JSON, endpoint exercise reports and retained API failure attachments.
 - `ui-test-reports`: the same Playwright reports, plus retained browser traces, screenshots and videos on failure.

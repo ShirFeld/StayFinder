@@ -1,4 +1,5 @@
-type JsonResponse = any; // Raw HTTP response under test; validated by scenario assertions.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Raw HTTP bodies are validated by scenario assertions.
+type JsonResponse = any;
 interface RequestOptions {
   cookie?: string | null;
   body?: unknown;
@@ -27,7 +28,7 @@ let app: ReturnType<typeof createApp>,
   base: string,
   jamie: string | null | undefined,
   taylor: string | undefined,
-  admin: string | undefined;
+  _admin: string | undefined;
 const date = (n: number) => {
   const d = new Date(today() + "T12:00:00Z");
   d.setUTCDate(d.getUTCDate() + n);
@@ -81,10 +82,9 @@ async function sync(id: string, cookie = jamie) {
 function pay(id: string) {
   stripe.pay(
     db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT stripe_session_id FROM checkouts WHERE id=?",
+      )
       .get(id)!.stripe_session_id!,
   );
 }
@@ -111,7 +111,7 @@ before(async () => {
     assert.equal(r.status, 200);
     if (name === "jamie") jamie = r.cookie;
     else if (name === "taylor") taylor = r.cookie;
-    else admin = r.cookie;
+    else _admin = r.cookie;
   }
 });
 after(async () => {
@@ -195,10 +195,9 @@ test("holds occupy catalog and availability, no booking exists until verified pa
   }
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        { n: number }
-      >("SELECT count(*) n FROM bookings WHERE checkout_id=?")
+      .prepare<unknown[], { n: number }>(
+        "SELECT count(*) n FROM bookings WHERE checkout_id=?",
+      )
       .get(c.data.id)!.n,
     1,
   );
@@ -289,10 +288,9 @@ test("hold creation is atomic for competing requests and checkout data is owner-
 test("expired abandoned checkout releases dates; late paid checkout is refunded without stealing another hold", async () => {
   const c = (await start(range(3))).data;
   const sessionId = db
-    .prepare<
-      unknown[],
-      CheckoutRow
-    >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+    .prepare<unknown[], CheckoutRow>(
+      "SELECT stripe_session_id FROM checkouts WHERE id=?",
+    )
     .get(c.id)!.stripe_session_id!;
   db.prepare("UPDATE checkouts SET expires_at=unixepoch()-1 WHERE id=?").run(
     c.id,
@@ -320,10 +318,9 @@ test("uncertain checkout creation remains recoverable with same provider idempot
   const failed = await start(range(4), jamie, key);
   assert.equal(failed.status, 503);
   const c = db
-    .prepare<
-      unknown[],
-      CheckoutRow
-    >("SELECT * FROM checkouts WHERE request_key=?")
+    .prepare<unknown[], CheckoutRow>(
+      "SELECT * FROM checkouts WHERE request_key=?",
+    )
     .get(key)!;
   assert.equal(c.status, "creating");
   const before = stripe.createCalls;
@@ -421,10 +418,9 @@ test("signed webhooks confirm payments once even without browser return; forged/
   const c = (await start(range(10))).data;
   pay(c.id);
   const row = db
-    .prepare<
-      unknown[],
-      CheckoutRow
-    >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+    .prepare<unknown[], CheckoutRow>(
+      "SELECT stripe_session_id FROM checkouts WHERE id=?",
+    )
     .get(c.id)!;
   const event = {
     id: "evt_test_paid",
@@ -452,10 +448,9 @@ test("signed webhooks confirm payments once even without browser return; forged/
   assert.equal((await deliver(event)).status, 200);
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        { n: number }
-      >("SELECT count(*) n FROM bookings WHERE checkout_id=?")
+      .prepare<unknown[], { n: number }>(
+        "SELECT count(*) n FROM bookings WHERE checkout_id=?",
+      )
       .get(c.id)!.n,
     1,
   );
@@ -466,10 +461,9 @@ test("provider totals cannot be forged, and deactivation after holding triggers 
   pay(c.id);
   const s = stripe.sessions.get(
     db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT stripe_session_id FROM checkouts WHERE id=?",
+      )
       .get(c.id)!.stripe_session_id!,
   )!;
   s.amount_total++;
@@ -479,10 +473,9 @@ test("provider totals cannot be forged, and deactivation after holding triggers 
   );
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        { n: number }
-      >("SELECT count(*) n FROM bookings WHERE checkout_id=?")
+      .prepare<unknown[], { n: number }>(
+        "SELECT count(*) n FROM bookings WHERE checkout_id=?",
+      )
       .get(c.id)!.n,
     0,
   );
@@ -526,10 +519,9 @@ test("checkout callback origin is immutable across an uncertain request and conf
     assert.equal(retry.status, 201);
     assert.equal(
       db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT return_origin FROM checkouts WHERE id=?")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT return_origin FROM checkouts WHERE id=?",
+        )
         .get(retry.data.id)!.return_origin,
       old,
     );
@@ -545,10 +537,9 @@ test("disabled holder or reduced capacity is refunded rather than confirming an 
   await app.locals.payments.synchronize(c.id);
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT status FROM checkouts WHERE id=?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT status FROM checkouts WHERE id=?",
+      )
       .get(c.id)!.status,
     "refunded",
   );
@@ -619,10 +610,9 @@ test("unconfigured checkout returns an actionable error instead of creating an u
 
 test("a saved checkout cancellation is completed by background reconciliation after an outage", async () => {
   for (const c of db
-    .prepare<
-      unknown[],
-      CheckoutRow
-    >("SELECT id,user_id FROM checkouts WHERE status IN ('creating','open')")
+    .prepare<unknown[], CheckoutRow>(
+      "SELECT id,user_id FROM checkouts WHERE status IN ('creating','open')",
+    )
     .all())
     await request("/api/checkouts/" + c.id + "/cancel", {
       method: "POST",
@@ -637,10 +627,9 @@ test("a saved checkout cancellation is completed by background reconciliation af
   );
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT cancel_requested FROM checkouts WHERE id=?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT cancel_requested FROM checkouts WHERE id=?",
+      )
       .get(c.id)!.cancel_requested,
     1,
   );
@@ -711,10 +700,9 @@ test("an expired local hold explicitly distinguishes unverified payment from pro
   assert.equal(local.verificationPending, true);
   assert.ok(Math.abs(local.serverTime - Math.floor(Date.now() / 1000)) <= 1);
   const sid = db
-    .prepare<
-      unknown[],
-      CheckoutRow
-    >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+    .prepare<unknown[], CheckoutRow>(
+      "SELECT stripe_session_id FROM checkouts WHERE id=?",
+    )
     .get(c.id)!.stripe_session_id!;
   stripe.sessions.get(sid)!.status = "expired";
   const verified = (await sync(c.id)).data;
@@ -737,10 +725,9 @@ test("only configured loopback aliases are accepted and the trusted browser orig
     assert.equal(r.status, 201);
     assert.equal(
       db
-        .prepare<
-          unknown[],
-          CheckoutRow
-        >("SELECT return_origin FROM checkouts WHERE id=?")
+        .prepare<unknown[], CheckoutRow>(
+          "SELECT return_origin FROM checkouts WHERE id=?",
+        )
         .get(r.data.id)!.return_origin,
       origin,
     );

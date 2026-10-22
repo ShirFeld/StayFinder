@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24"
+  },
   "workspaces": [
     "client",
     "server",
@@ -34,9 +37,17 @@
     "test:report": "npm run report -w automation",
     "test:sanity:ui": "npm run test:sanity:ui -w automation",
     "test:sanity:debug": "npm run test:sanity:debug -w automation",
-    "typecheck": "npm run typecheck --workspaces"
+    "typecheck": "npm run typecheck:config && npm run typecheck --workspaces",
+    "typecheck:config": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "check": "npm run format:check && npm run lint && npm run build"
   },
   "devDependencies": {
+    "@eslint-react/eslint-plugin": "^5.28.2",
+    "@eslint/js": "^10.0.1",
     "@stripe/cli": "^1.54.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^4.17.25",
@@ -46,6 +57,14 @@
     "@types/react-dom": "^19.3.0",
     "@types/swagger-ui-express": "^4.1.8",
     "concurrently": "^9.1.2",
-    "typescript": "~5.9.3"
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-playwright": "^2.12.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "jiti": "^2.7.0",
+    "prettier": "3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0"
   }
 }

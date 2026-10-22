@@ -37,11 +37,7 @@ export interface Quote extends BookingInput {
   currency: string;
 }
 export type PaymentStatus =
-  | "paid"
-  | "refund_pending"
-  | "refund_failed"
-  | "refunded"
-  | "legacy";
+  "paid" | "refund_pending" | "refund_failed" | "refunded" | "legacy";
 export interface Booking {
   id: number;
   user_id: number;

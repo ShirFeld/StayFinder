@@ -8,10 +8,9 @@ export class SQLiteSessionStore extends session.Store {
   ) {
     try {
       const row = db
-        .prepare<
-          unknown[],
-          SessionRow
-        >("SELECT data FROM sessions WHERE sid=? AND expires>?")
+        .prepare<unknown[], SessionRow>(
+          "SELECT data FROM sessions WHERE sid=? AND expires>?",
+        )
         .get(sid, Date.now())!;
       callback(null, row ? JSON.parse(row.data) : null);
     } catch (caught) {

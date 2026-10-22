@@ -26,7 +26,13 @@ const fail: import("./types.ts").Fail = (status, code, message) => {
   throw new ApiError(status, code, message);
 };
 const asyncRoute =
-  (fn: import("express").RequestHandler): import("express").RequestHandler =>
+  (
+    fn: (
+      req: import("express").Request,
+      res: import("express").Response,
+      next: import("express").NextFunction,
+    ) => void | Promise<unknown>,
+  ): import("express").RequestHandler =>
   (req, res, next) =>
     Promise.resolve(fn(req, res, next)).catch(next);
 const integer = (v: unknown, name: string, min = 1, max = 1000000) => {
@@ -106,16 +112,14 @@ function property(id: unknown, includeInactive = false) {
 function available(id: number, checkIn: string, checkOut: string) {
   return (
     !db
-      .prepare<
-        unknown[],
-        BookingRow
-      >("SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?")
+      .prepare<unknown[], BookingRow>(
+        "SELECT id FROM bookings WHERE property_id=? AND status='confirmed' AND check_in<? AND check_out>?",
+      )
       .get(id, checkOut, checkIn)! &&
     !db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT id FROM checkouts WHERE property_id=? AND status IN ('creating','open') AND expires_at>unixepoch() AND check_in<? AND check_out>?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT id FROM checkouts WHERE property_id=? AND status IN ('creating','open') AND expires_at>unixepoch() AND check_in<? AND check_out>?",
+      )
       .get(id, checkOut, checkIn)!
   );
 }
@@ -269,10 +273,9 @@ export function createApp({
   app.use((req, res, next) => {
     if (req.session.userId) {
       const u = db
-        .prepare<
-          unknown[],
-          UserRow
-        >("SELECT * FROM users WHERE id=? AND active=1")
+        .prepare<unknown[], UserRow>(
+          "SELECT * FROM users WHERE id=? AND active=1",
+        )
         .get(req.session.userId)!;
       if (u) req.user = u;
     }
@@ -322,10 +325,9 @@ export function createApp({
       const email = text(req.body.email, "Email").toLowerCase(),
         password = text(req.body.password, "Password", 200);
       const user = db
-        .prepare<
-          unknown[],
-          UserRow
-        >("SELECT * FROM users WHERE email=? AND active=1")
+        .prepare<unknown[], UserRow>(
+          "SELECT * FROM users WHERE email=? AND active=1",
+        )
         .get(email)!;
       if (!user || !(await bcrypt.compare(password, user.password_hash)))
         fail(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
@@ -356,10 +358,9 @@ export function createApp({
   app.get("/api/destinations", (req, res) =>
     res.json({
       items: db
-        .prepare<
-          unknown[],
-          { n: number }
-        >("SELECT destination,count(*) count,latitude,longitude FROM properties WHERE active=1 GROUP BY destination ORDER BY destination")
+        .prepare<unknown[], { n: number }>(
+          "SELECT destination,count(*) count,latitude,longitude FROM properties WHERE active=1 GROUP BY destination ORDER BY destination",
+        )
         .all(),
     }),
   );
@@ -428,10 +429,9 @@ export function createApp({
         pageSize = integer(q.pageSize ?? 6, "Page size", 1, 50);
       const where = clauses.join(" AND "),
         total = db
-          .prepare<
-            unknown[],
-            { n: number }
-          >("SELECT count(*) n FROM properties p WHERE " + where)
+          .prepare<unknown[], { n: number }>(
+            "SELECT count(*) n FROM properties p WHERE " + where,
+          )
           .get(...args)!.n;
       const items = db
         .prepare<unknown[], PropertyRow>(
@@ -485,7 +485,7 @@ export function createApp({
     ),
   );
   // Direct booking is intentionally disabled: payment cannot be bypassed.
-  app.post("/api/bookings", auth, (req, res) =>
+  app.post("/api/bookings", auth, (_req, _res) =>
     fail(
       409,
       "PAYMENT_REQUIRED",
@@ -688,8 +688,7 @@ export function createApp({
           windUnit: "km/h",
           source: "Open-Meteo",
         });
-      } catch (caught) {
-        const e = caught as Error & { code?: string; type?: string };
+      } catch {
         fail(
           503,
           "WEATHER_UNAVAILABLE",
@@ -713,7 +712,7 @@ export function createApp({
       err: Error & { status?: number; code?: string; type?: string },
       req: import("express").Request,
       res: import("express").Response,
-      next: import("express").NextFunction,
+      _next: import("express").NextFunction,
     ) => {
       let status = err.status || 500,
         code = err.code || "INTERNAL_ERROR",

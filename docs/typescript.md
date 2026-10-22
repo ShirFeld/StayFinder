@@ -11,9 +11,9 @@ npm test
 npm run test:automation
 ```
 
-`typecheck` checks all three workspaces without generating JavaScript. `build` runs those checks before bundling the client. CI runs the same build and regression suites.
+`typecheck` checks the root ESLint configuration and all three workspaces without generating JavaScript. `npm run typecheck:config` checks only the root configuration. `build` runs those checks before bundling the client. CI's `quality` job runs `npm run check`, which also runs ESLint.
 
-`tsconfig.base.json` enables strict checks and shared ES2022/module settings. Each workspace has its own `tsconfig.json`: the client includes browser and React types; the server includes Node types; automation includes both browser and Node types.
+`tsconfig.base.json` enables strict checks and shared ES2022/module settings. The root `tsconfig.json` includes `eslint.config.ts`, so the editor and compiler use those options for the configuration file too. Each workspace has its own `tsconfig.json`: the client includes browser and React types; the server includes Node types; automation includes both browser and Node types.
 
 `shared/types.ts` defines API models used by the UI and server. `server/src/types.ts` defines SQLite row types, session/request extensions and the payment provider interface. SQL query results declare their row shape at the query boundary. Runtime input validation remains in the server; TypeScript types do not validate external JSON or SQL results.
 
