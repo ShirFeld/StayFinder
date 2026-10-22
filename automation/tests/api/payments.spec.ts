@@ -109,12 +109,16 @@ test("PAY-05 checkout and booking ownership are enforced @payments", async ({
   system,
 }) => {
   const c = await actors.customer.checkout(stay(system.today));
-  for (const suffix of ["", "/sync", "/cancel", "/refund"]) {
-    const result = suffix
-      ? await actors.other.post(`/checkouts/${c.id}${suffix}`, undefined, {
-          status: 404,
-        })
-      : await actors.other.get(`/checkouts/${c.id}`, { status: 404 });
+  const checkout = await actors.other.get(`/checkouts/${c.id}`, {
+    status: 404,
+  });
+  expect(checkout.error.code).toBe("NOT_FOUND");
+  for (const suffix of ["/sync", "/cancel", "/refund"]) {
+    const result = await actors.other.post(
+      `/checkouts/${c.id}${suffix}`,
+      undefined,
+      { status: 404 },
+    );
     expect(result.error.code).toBe("NOT_FOUND");
   }
   expect((await actors.other.get("/checkouts")).items).toEqual([]);
@@ -225,7 +229,12 @@ test("PAY-10 adjacent bookings are allowed and same-day cancellation is rejected
     checkIn: firstRange.checkOut,
     checkOut: dateAfter(system.today, 4),
   });
-  await actors.other.checkout(adjacent);
+  const nextCheckout = await actors.other.checkout(adjacent);
+  expect(nextCheckout).toMatchObject({
+    status: "open",
+    checkIn: adjacent.checkIn,
+    checkOut: adjacent.checkOut,
+  });
 });
 
 test("PAY-11 direct booking cannot bypass checkout or authentication @payments", async ({

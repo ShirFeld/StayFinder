@@ -10,6 +10,7 @@ test("WEA-01 weather is mapped from provider response @sanity", async ({
     source: "Open-Meteo",
   });
 });
+
 for (const mode of ["http", "malformed", "timeout"]) {
   test(`WEA-02 ${mode} failure is clear and never blocks checkout`, async ({
     actors,

@@ -1,4 +1,5 @@
-type JsonResponse = any; // Raw HTTP response under test; validated by scenario assertions.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Raw HTTP bodies are validated by scenario assertions.
+type JsonResponse = any;
 interface RequestOptions {
   cookie?: string | null;
   body?: unknown;
@@ -56,10 +57,9 @@ async function request(
     });
     if (checkout.status !== 201) return checkout;
     const row = db
-      .prepare<
-        unknown[],
-        CheckoutRow
-      >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+      .prepare<unknown[], CheckoutRow>(
+        "SELECT stripe_session_id FROM checkouts WHERE id=?",
+      )
       .get(checkout.data.id)!;
     stripe.pay(row.stripe_session_id!);
     const verified = await request(
@@ -242,10 +242,9 @@ test("stage 2: server price, competing requests, exclusive checkout, ownership, 
   assert.equal(winner.data.total_cents, 33000);
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        { n: number }
-      >("SELECT count(*) n FROM bookings WHERE property_id=1")
+      .prepare<unknown[], { n: number }>(
+        "SELECT count(*) n FROM bookings WHERE property_id=1",
+      )
       .get()!.n,
     1,
   );
@@ -267,10 +266,9 @@ test("stage 2: server price, competing requests, exclusive checkout, ownership, 
   db.prepare("UPDATE properties SET price_cents=99900 WHERE id=1").run();
   assert.equal(
     db
-      .prepare<
-        unknown[],
-        BookingRow
-      >("SELECT total_cents FROM bookings WHERE id=?")
+      .prepare<unknown[], BookingRow>(
+        "SELECT total_cents FROM bookings WHERE id=?",
+      )
       .get(winner.data.id)!.total_cents,
     33000,
   );

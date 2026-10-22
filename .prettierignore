@@ -1,0 +1,19 @@
+# Dependencies, generated files and local application data.
+node_modules/
+**/dist/
+**/reports/
+**/test-results/
+**/playwright-report/
+ci-artifacts/
+server/data/
+automation/.auth/
+package-lock.json
+*.log
+
+# Local credentials and QA configuration.
+.env
+.env.*
+server/qa.env
+
+# Historical development log, maintained separately from source formatting.
+docs/conversation-checkpoint.md

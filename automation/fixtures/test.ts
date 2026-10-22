@@ -156,19 +156,17 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       pay(checkoutId) {
         stripe.pay(
           db
-            .prepare<
-              unknown[],
-              CheckoutRow
-            >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+            .prepare<unknown[], CheckoutRow>(
+              "SELECT stripe_session_id FROM checkouts WHERE id=?",
+            )
             .get(checkoutId)!.stripe_session_id!,
         );
       },
       expire(checkoutId) {
         const row = db
-          .prepare<
-            unknown[],
-            CheckoutRow
-          >("SELECT stripe_session_id FROM checkouts WHERE id=?")
+          .prepare<unknown[], CheckoutRow>(
+            "SELECT stripe_session_id FROM checkouts WHERE id=?",
+          )
           .get(checkoutId)!;
         db.prepare(
           "UPDATE checkouts SET expires_at=unixepoch()-1 WHERE id=?",
@@ -206,16 +204,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           body: JSON.stringify(
             {
               bookings: db
-                .prepare<
-                  unknown[],
-                  BookingRow
-                >("SELECT id,property_id,status,payment_status,total_cents FROM bookings")
+                .prepare<unknown[], BookingRow>(
+                  "SELECT id,property_id,status,payment_status,total_cents FROM bookings",
+                )
                 .all(),
               checkouts: db
-                .prepare<
-                  unknown[],
-                  CheckoutRow
-                >("SELECT id,property_id,status,refund_status,total_cents FROM checkouts")
+                .prepare<unknown[], CheckoutRow>(
+                  "SELECT id,property_id,status,refund_status,total_cents FROM checkouts",
+                )
                 .all(),
             },
             null,

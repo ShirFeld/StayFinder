@@ -72,7 +72,7 @@ function App() {
   }, []);
   useEffect(() => {
     if (user) setError("");
-  }, [user?.id]);
+  }, [user]);
   async function logout() {
     try {
       await send("/auth/logout");
@@ -171,7 +171,7 @@ function Search({ initial = {} }: { initial?: Record<string, string> }) {
     const query = new URLSearchParams();
     for (const [k, v] of new FormData(e.currentTarget))
       if (typeof v === "string" && v) query.set(k, v);
-    navigate("/stays?" + query);
+    void navigate("/stays?" + query);
   }
   return (
     <form className="search-bar" onSubmit={submit}>
@@ -549,7 +549,7 @@ function Detail({ user }: { user: User | null }) {
       guests: params.get("guests") || 2,
     });
     setQuote(null);
-  }, [params.toString()]);
+  }, [params]);
   function update(k: string, v: string) {
     setRange({ ...range, [k]: v });
     setQuote(null);
@@ -624,6 +624,8 @@ function Detail({ user }: { user: User | null }) {
               {p.images.map((src, i) => (
                 <Photo
                   src={src}
+                  // The read-only gallery can contain repeated image URLs.
+                  // eslint-disable-next-line @eslint-react/no-array-index-key
                   key={src + i}
                   alt={p.name + " — photo " + (i + 1)}
                 />
@@ -761,7 +763,7 @@ function Login({
       );
       setUser(d.user);
       const next = params.get("next");
-      navigate(
+      void navigate(
         next?.startsWith("/") && !next.startsWith("//") ? next : "/stays",
       );
     } catch (caught) {

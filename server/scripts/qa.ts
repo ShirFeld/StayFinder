@@ -42,10 +42,9 @@ if (command === "status") {
         ["users", "properties", "bookings", "checkouts"].map((table) => [
           table,
           db
-            .prepare<
-              unknown[],
-              { n: number }
-            >("SELECT count(*) n FROM " + table)
+            .prepare<unknown[], { n: number }>(
+              "SELECT count(*) n FROM " + table,
+            )
             .get()!.n,
         ]),
       );

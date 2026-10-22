@@ -67,11 +67,11 @@ test("UI-04 quote, hosted redirect, verified payment, booking and confirmed refu
   await bookingsPage.requestCancellation();
   await expect(bookingsPage.cancellation.keepButton).toBeFocused();
   await bookingsPage.cancellation.dismissWithEscape();
-  await expect(bookingsPage.cancellation.root).not.toBeVisible();
+  await expect(bookingsPage.cancellation.root).toBeHidden();
   expect(system.db.one("SELECT status FROM bookings").status).toBe("confirmed");
   await bookingsPage.requestCancellation();
   await bookingsPage.cancellation.confirmFullRefund();
-  await expect(bookingsPage.cancellation.root).not.toBeVisible();
+  await expect(bookingsPage.cancellation.root).toBeHidden();
   await expect(bookingsPage.refundedPayment).toBeVisible();
   expect(system.db.one("SELECT status,payment_status FROM bookings")).toEqual({
     status: "cancelled",

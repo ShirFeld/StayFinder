@@ -123,6 +123,7 @@ function stateFor(c: Checkout, remaining: number, returned: boolean) {
 export function CheckoutPage({ user }: { user: User | null }) {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
+  const userId = user?.id;
   const [checkout, setCheckout] = useState<Checkout | null>(null),
     [error, setError] = useState(""),
     [needsLogin, setNeedsLogin] = useState(false),
@@ -140,14 +141,18 @@ export function CheckoutPage({ user }: { user: User | null }) {
       setOffset(
         (c.serverTime || Math.floor(Date.now() / 1000)) * 1000 - Date.now(),
       );
-      if (!["creating", "open"].includes(c.status) && !c.verificationPending)
-        forgetCheckoutRequest(user!.id, c);
+      if (
+        userId !== undefined &&
+        !["creating", "open"].includes(c.status) &&
+        !c.verificationPending
+      )
+        forgetCheckoutRequest(userId, c);
     },
-    [user?.id],
+    [userId],
   );
   const run = useCallback(
     (action: "sync" | "cancel" | "refund") => {
-      if (!user) return Promise.resolve(null);
+      if (userId === undefined) return Promise.resolve(null);
       if (pending.current) return pending.current;
       const version = generation.current;
       setBusy(true);
@@ -174,7 +179,7 @@ export function CheckoutPage({ user }: { user: User | null }) {
       pending.current = request;
       return request;
     },
-    [id, user?.id, accept],
+    [id, userId, accept],
   );
   useEffect(() => {
     generation.current++;
@@ -183,9 +188,9 @@ export function CheckoutPage({ user }: { user: User | null }) {
     setCheckout(null);
     setError("");
     setNeedsLogin(false);
-    if (!user) return;
+    if (userId === undefined) return;
     const version = generation.current;
-    (async () => {
+    void (async () => {
       try {
         const c = await api<Checkout>("/checkouts/" + id);
         if (version !== generation.current) return;
@@ -208,15 +213,15 @@ export function CheckoutPage({ user }: { user: User | null }) {
       }
     })();
     return () => {
-      generation.current++;
+      generation.current = version + 1;
     };
-  }, [id, user?.id]);
+  }, [id, userId, accept, run, params, setParams]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (!user || needsLogin) return;
+    if (userId === undefined || needsLogin) return;
     const poll = () => {
       const c = latest.current;
       if (
@@ -224,7 +229,7 @@ export function CheckoutPage({ user }: { user: User | null }) {
         (["creating", "open", "refund_pending"].includes(c.status) ||
           c.verificationPending)
       )
-        run("sync");
+        void run("sync");
     };
     const timer = setInterval(poll, 5000);
     const onFocus = () => {
@@ -237,7 +242,7 @@ export function CheckoutPage({ user }: { user: User | null }) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [id, user?.id, needsLogin, run]);
+  }, [id, userId, needsLogin, run]);
   const login =
     "/login?next=" + encodeURIComponent("/checkout/" + id + "?" + params);
   if (!user)

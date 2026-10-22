@@ -41,11 +41,9 @@ This section supersedes the original temporary-sandbox deadline and earlier veri
 
 Limits: this remains a targeted desktop/mobile and keyboard pass, not exhaustive WCAG/screen-reader/cross-browser/load verification. QA payments are disabled by default unless QA-specific sandbox credentials are intentionally configured. No full Playwright framework was introduced.
 
-
 ## Repository cleanup - October 17, 2026
 
 Removed ignored one-off development scripts, historical Stripe logs, temporary browser verification scripts, screenshots and browser profiles, and the empty automation placeholder. Historical verification entries above describe checks performed at the time; their temporary artifacts are no longer present. Maintained server tests remain in server/test. Database files and private Stripe setup were preserved. The 29 server tests and frontend production build passed after cleanup; browser flows were not repeated because application code did not change.
-
 
 ## Maintained Playwright automation - October 17, 2026
 
@@ -56,7 +54,6 @@ The frontend production build and all 29 existing Node server tests also passed.
 Fixtures use private per-worker SQLite files in unique OS temporary directories, reseeded for every test, with separate request/browser sessions and loopback ports selected by the OS. Stripe and weather networks are controlled; actual Stripe SDK webhook signature verification is retained. UI journeys cover quote/hosted redirect/verification/booking/refund, pending checkout reload/cancellation, login/logout, filters, responsive layout, errors, permissions, admin sections and keyboard navigation. Direct SQL probes verify foreign keys, unique emails, money checks and overlap protection, always rolling back the probe.
 
 The normal and manual-QA databases and private configuration were not targets of the suite. HTML, JSON, JUnit, endpoint reports and failure artifacts are ignored by Git. A GitHub Actions workflow was added but has not been executed remotely. Full setup, interview walkthrough and limitations are in automation/README.md and automation/test-strategy.md. No real card transaction or real Stripe hosted-form test was performed by this automated run.
-
 
 ## Fixture-injected POM refactor - October 17, 2026
 

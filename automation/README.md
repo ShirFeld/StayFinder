@@ -131,26 +131,25 @@ Use the fixture export, not `test` directly from Playwright, when accessing the 
 
 The design follows the official Playwright guides for [fixtures](https://playwright.dev/docs/test-fixtures), [API testing](https://playwright.dev/docs/api-testing), [Page Objects](https://playwright.dev/docs/pom), and [reports](https://playwright.dev/docs/test-reporters).
 
-
 ## Page Object Model and fixtures
 
 All UI journeys import `test` and `expect` from `fixtures/ui.fixture.ts`. This extends the existing infrastructure fixtures in `fixtures/test.ts`, keeping API/DB tests independent of UI abstractions.
 
-| Layer | Responsibility |
-| --- | --- |
-| `tests/ui/journeys.spec.ts` | Scenario order and assertions. No element selectors or Page Object construction. |
-| `fixtures/ui.fixture.ts` | Creates requested Page Objects for the current test's browser page. Installs/removes the external payment stub and page-error listener when requested. |
-| `pages/*.page.ts` | Semantic locators and reusable page interactions. Login, catalog, accommodation, checkout, bookings and admin. |
-| `pages/components/` | Shared application shell and booking cancellation dialog. |
-| `fixtures/test.ts` | Real application lifecycle, isolated database, API actors and controlled providers. |
-| `api/client.ts` | HTTP operations for API tests; API requests do not need browser Page Objects. |
+| Layer                       | Responsibility                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/ui/journeys.spec.ts` | Scenario order and assertions. No element selectors or Page Object construction.                                                                       |
+| `fixtures/ui.fixture.ts`    | Creates requested Page Objects for the current test's browser page. Installs/removes the external payment stub and page-error listener when requested. |
+| `pages/*.page.ts`           | Semantic locators and reusable page interactions. Login, catalog, accommodation, checkout, bookings and admin.                                         |
+| `pages/components/`         | Shared application shell and booking cancellation dialog.                                                                                              |
+| `fixtures/test.ts`          | Real application lifecycle, isolated database, API actors and controlled providers.                                                                    |
+| `api/client.ts`             | HTTP operations for API tests; API requests do not need browser Page Objects.                                                                          |
 
 For example:
 
 ```javascript
-import { test, expect } from '../../fixtures/ui.fixture.ts';
+import { test, expect } from "../../fixtures/ui.fixture.ts";
 
-test('customer can reach the catalog', async ({ loginPage, catalogPage }) => {
+test("customer can reach the catalog", async ({ loginPage, catalogPage }) => {
   await loginPage.signIn();
   await expect(catalogPage.heading).toBeVisible();
 });
