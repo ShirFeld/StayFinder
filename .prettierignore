@@ -17,3 +17,4 @@ server/qa.env
 
 # Historical development log, maintained separately from source formatting.
 docs/conversation-checkpoint.md
+docs/session-memory/
