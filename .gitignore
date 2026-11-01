@@ -22,3 +22,6 @@ automation/.auth/
 server/reports/
 ci-artifacts/
 quality.log
+
+# Local session handoffs, explanations and conversation records.
+docs/session-memory/
