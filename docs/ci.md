@@ -1,6 +1,6 @@
 # GitHub verification
 
-The workflow in `.github/workflows/automation.yml` runs on pushes to any branch, pull requests and manual dispatch. Merging into `main` updates that branch and triggers another push run.
+The workflow in `.github/workflows/automation.yml` runs on pushes to `main`, pull requests targeting `main` (opened, reopened or updated), and manual dispatch. A push to a work branch without an open PR targeting `main` does not start this workflow. Updating an open PR starts a PR run; merging into `main` updates that branch and starts a post-merge push run. This avoids duplicate push and PR runs for the same work-branch update.
 
 All jobs use the tested Node 22 version recorded in the root `.nvmrc` file. Update that file when adopting a newer Node 22 release so local version managers and GitHub Actions use the same version.
 
